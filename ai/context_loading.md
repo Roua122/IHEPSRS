@@ -1,20 +1,24 @@
-# Context Loading Protocol
+# Context Loading Protocol — v3
 
-قبل أي Task اقرأ فقط السياق المطلوب وبالترتيب:
+Read in this order:
 
 1. `README.md`
 2. `PROTOTYPE_README.md`
 3. `ai/memory.md`
-4. `docs/21_prototype_scope.md`
-5. `docs/22_demo_scenario.md`
-6. `ai/m.map.md`
-7. `architecture/architecture.md`
-8. Current Phase `README.md`
-9. Current Phase `TODO.md`
-10. Current Task file
-11. Referenced docs/specs only
+4. Current Task file
+5. Only the referenced source catalogues:
+   - FR/NFR
+   - Business Rules
+   - Use Case
+   - State Model
+   - Data Dictionary
+   - Integration/Security when applicable
+6. Current Phase `TODO.md`
+7. Architecture file relevant to the task
 
-## Important
-- لا تحمل كل المستودع بلا حاجة.
-- لا تنفذ Task مصنفة `DOCUMENTATION_ONLY` كخدمة Production.
-- لا تنفذ `FUTURE`.
+## Do not
+- Load the whole repository without need.
+- Invent a BR because the Task is difficult.
+- Add a State not in `docs/14_state_models.md`.
+- Change Source of Truth.
+- Turn `DOCUMENTATION_ONLY` into production infrastructure.

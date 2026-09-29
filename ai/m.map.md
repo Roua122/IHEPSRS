@@ -1,48 +1,35 @@
-# Master Map
+# Master Map — Developer Reference v3
 
-## Trace path
-Requirement
-→ Use Case
-→ Business Rule
-→ Domain
+## Source-of-truth chain
+Analysis Baseline
+→ FR / BR / NFR / UC
+→ State/Data/Integration rules
 → Prototype Classification
 → Phase
 → Task
 → Code
 → Test
 
-## Prototype classifications
-- IMPLEMENT
-- MOCK
-- DOCUMENTATION_ONLY
-- FUTURE
+## Catalogues
+- Functional: `docs/requirements/functional_requirements.md`
+- Non-functional: `docs/requirements/non_functional_requirements.md`
+- Business Rules: `docs/13_business_rules.md`
+- Use Cases: `docs/03_use_case_scenarios.md`
+- States: `docs/14_state_models.md`
+- Data: `docs/15_data_model.md`
+- Integration: `docs/16_integration.md`
+- Security: `docs/17_security.md`
+- Traceability: `docs/26_traceability_matrix.md`
+- Task mapping: `docs/27_developer_task_matrix.md`
 
-## Priority
-- MUST
-- SHOULD
-- N/A
-
-## Domain ownership — 7 members
-- Foundation / IAM → Member 1
-- Institutions / Programs → Member 2
-- Mock SIS / Integration → Member 3
-- Postgraduate / Enrollment → Member 4
-- Thesis / Defense → Member 5
-- Research / Publications → Member 6
-- Dashboard / Audit / QA → Member 7
+## Team ownership
+- Member 1 → Foundation + IAM
+- Member 2 → Institutions + Programs
+- Member 3 → Mock SIS + Integration
+- Member 4 → Postgraduate + Enrollment
+- Member 5 → Thesis
+- Member 6 → Research + Publications
+- Member 7 → Dashboard + Audit + QA/Release
 
 ## Rule
-كل Task يجب أن يذكر:
-- FR / BR / UC / NFR references عندما يتم استخراجها نهائيًا من الـBaseline.
-- Implementation Classification.
-- Prototype Priority.
-- Owner.
-
-## Core demo dependency
-Mock SIS
-→ Integration
-→ Applicant/Application
-→ Enrollment
-→ Thesis
-→ Publication
-→ Dashboard/Audit
+Before coding a task, read its Task file. It now contains real FR/BR/UC/NFR references from the Baseline.
