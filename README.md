@@ -80,3 +80,16 @@ git push -u origin feature/TASK-ID-name
 - حالات الفشل معالجة.
 - الاختبارات ناجحة.
 - الوثائق المتأثرة محدثة.
+
+## Developer Reference v3
+
+هذا الإصدار لم يعد مجرد Folder Structure. تم استخراج وربط المرجع الفعلي من
+`IHEPSRS_Final_Analysis_Baseline_v3_ReviewClosed_AR.docx`.
+
+ابدأ من:
+1. `docs/30_reference_status.md`
+2. `docs/27_developer_task_matrix.md`
+3. Task file المطلوب
+4. Source catalogues المشار إليها داخل الـTask
+
+لا تستخدم أي `TBD` قديم كمرجع للمتطلبات؛ Tasks الحالية تحتوي IDs حقيقية من الـBaseline.

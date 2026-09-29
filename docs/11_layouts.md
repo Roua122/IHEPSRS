@@ -1,17 +1,10 @@
-# Layouts
+# Layouts — Proposed Design
 
-## Proposed layouts
-- PublicLayout
-- AuthLayout
-- DashboardLayout
-- AdminLayout
-- PrintLayout
+Status: Design-derived.
 
-كل Layout يجب أن يحدد:
-- Header
-- Navigation
-- Sidebar
-- Breadcrumb
-- Footer
-- Responsive behavior
-- Accessibility behavior
+- `AuthLayout`: login/identity.
+- `DashboardLayout`: authenticated operational pages.
+- `AdminLayout`: security/configuration/registry administration.
+- `PrintExportLayout`: reports/printable summaries.
+
+All authenticated layouts must preserve role/scope-aware navigation and accessibility constraints.

@@ -1,65 +1,53 @@
-# Project Memory
+# Project Memory — Developer Reference v3
 
 ## Project
 IHEPSRS
 
 ## Implementation Mode
-**Academic Prototype / Proof of Concept**
+Academic Prototype / Proof of Concept.
 
-Do NOT attempt to implement the complete production platform.
-
-## Primary Objective
-Complete the end-to-end scenario:
-`Mock SIS → Integration → Postgraduate → Enrollment → Thesis → Publication → Dashboard → Audit`
-
-## Source of Truth
+## Authoritative Analysis
 `docs/reference/IHEPSRS_Final_Analysis_Baseline_v3_ReviewClosed_AR.docx`
 
-## Prototype Scope
-`docs/21_prototype_scope.md`
+## Developer Reference Status
+The source catalogues and current Task files have been populated from the final Analysis Baseline.
+Do not use old `TBD` requirement references.
 
-## Demo Scenario
-`docs/22_demo_scenario.md`
+## Primary demo
+Mock University SIS
+→ Integration
+→ Postgraduate Application
+→ Enrollment
+→ Thesis
+→ Defense/Corrections
+→ Publication
+→ Dashboard
+→ Audit
 
-## Never violate
-- Business Rules
-- State Models
-- Field-level Source of Truth
-- Security requirements
-- Integration identity/idempotency rules
-- Audit requirements
-
-## Architecture principles
-- API First
-- Security by Design
-- Loose Coupling
+## Frozen without Change Request
+- Scope
 - Source of Truth
-- Auditability
-- Interoperability
-- Explicit versioning
+- Business Rules
+- State semantics
+- Fundamental access model
+- Idempotency/duplicate semantics
+- Must requirement meaning
 
-## Task Classification
-Before coding, read:
-- `Implementation: IMPLEMENT | MOCK | DOCUMENTATION_ONLY | FUTURE`
-- `Prototype Priority: MUST | SHOULD | N/A`
-
-Rules:
-- IMPLEMENT → code.
-- MOCK → simulate only.
-- DOCUMENTATION_ONLY → document; do not build enterprise infrastructure.
-- FUTURE → skip in current prototype.
+## Design-decided
+- Framework/language
+- DB engine
+- Modular Monolith vs Microservices
+- Physical deployment
+- Broker/queue technology
+- Visual design details
+- Caching/indexing
+- CI/CD implementation
 
 ## Current Phase
-`TBD`
+Set by team when work starts.
 
 ## Current Task
-`TBD`
+Set by developer/AI before execution.
 
 ## Team
-7 members. See `docs/24_team_work_allocation.md`.
-
-## Completed
-Update only after merge to `main`.
-
-## Open design decisions
-See `architecture/decisions/`.
+7 members — see `TEAM.md` and `docs/24_team_work_allocation.md`.

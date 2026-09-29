@@ -1,18 +1,26 @@
-# Website Structure
+# Website Structure — Prototype Design
 
-> Design artifact مشتق من التحليل، وليس Requirement أصليًا.
+Status: Design-derived from Baseline UCs and Prototype Scope.
 
-## Proposed top-level structure
-- `/`
-- `/dashboard`
-- `/institutions`
-- `/postgraduate`
-- `/theses`
-- `/research`
-- `/publications`
-- `/integrations`
-- `/reports`
-- `/audit`
-- `/settings`
+```text
+/
+├── login
+├── dashboard
+├── institutions
+├── programs
+├── students
+├── postgraduate
+│   ├── applications
+│   └── enrollments
+├── theses
+├── research
+│   └── projects
+├── publications
+├── integrations
+│   └── messages
+├── audit
+└── settings
+    └── users / roles
+```
 
-كل Route نهائي يجب توثيقه في `docs/10_routes.md`.
+راجع `docs/10_routes.md` للمسارات المقترحة وربطها بحالات الاستخدام.
