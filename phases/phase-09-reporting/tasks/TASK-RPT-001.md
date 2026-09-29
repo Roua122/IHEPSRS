@@ -3,7 +3,7 @@
 Status: TODO
 Implementation: IMPLEMENT
 Prototype Priority: SHOULD
-Owner: Member 7
+Owner: أمة الرحمن فواد
 
 ## Analysis Source
 - Baseline: `docs/reference/IHEPSRS_Final_Analysis_Baseline_v3_ReviewClosed_AR.docx`

@@ -22,14 +22,13 @@ Analysis Baseline
 - Traceability: `docs/26_traceability_matrix.md`
 - Task mapping: `docs/27_developer_task_matrix.md`
 
-## Team ownership
-- Member 1 → Foundation + IAM
-- Member 2 → Institutions + Programs
-- Member 3 → Mock SIS + Integration
-- Member 4 → Postgraduate + Enrollment
-- Member 5 → Thesis
-- Member 6 → Research + Publications
-- Member 7 → Dashboard + Audit + QA/Release
-
+## Team ownership — balanced
+- رؤى محمد → Foundation + IAM Core + Security Verification
+- مرام وديع → Institutions + Delegation + Publication Affiliations + Accessibility
+- خلود مهيب → Mock SIS + Integration Core + Performance
+- رهف عادل → Postgraduate + Enrollment + Thesis Entry
+- دعاء عبد الواحد → Supervisor + Defense + Corrections + Final Approval
+- سمية خالد → Research + Publication Core
+- أمة الرحمن فواد → Integration Operations + Reporting + DR/Release
 ## Rule
 Before coding a task, read its Task file. It now contains real FR/BR/UC/NFR references from the Baseline.

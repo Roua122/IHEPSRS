@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.1 — Balanced Team Assignment
+- Assigned all 56 Tasks across the 7 named team members.
+- Balanced workload by technical difficulty and dependency, not task count only.
+- Updated `TEAM.md`.
+- Updated `docs/24_team_work_allocation.md`.
+- Updated Owner in every `TASK-*.md`.
+- Updated owners in all Phase `TODO.md` files.
+- Updated Owner column in `docs/27_developer_task_matrix.md`.
+
 ## v3 — Developer Reference Filled
 - Extracted 48 FRs, 38 NFRs, 62 BRs and 24 UCs from the final Analysis Baseline.
 - Filled state models, data dictionary, Source of Truth, integration, security, audit and testing references.

@@ -3,7 +3,7 @@
 Status: TODO
 Implementation: MOCK
 Prototype Priority: MUST
-Owner: Member 3
+Owner: خلود مهيب
 
 ## Analysis Source
 - Baseline: `docs/reference/IHEPSRS_Final_Analysis_Baseline_v3_ReviewClosed_AR.docx`
