@@ -1,6 +1,9 @@
 # TASK-HRD-005 — Disaster recovery readiness
 
 Status: TODO
+Implementation: DOCUMENTATION_ONLY
+Prototype Priority: N/A
+Owner: Member 7
 
 ## References
 - FR: TBD

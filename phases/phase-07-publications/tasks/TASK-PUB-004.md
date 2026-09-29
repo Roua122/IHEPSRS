@@ -1,6 +1,9 @@
 # TASK-PUB-004 — Affiliations at publication time
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 6
 
 ## References
 - FR: TBD

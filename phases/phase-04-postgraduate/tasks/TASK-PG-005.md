@@ -1,6 +1,9 @@
 # TASK-PG-005 — Enrollment lifecycle
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 4
 
 ## References
 - FR: TBD

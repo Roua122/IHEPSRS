@@ -1,6 +1,9 @@
 # TASK-HRD-003 — Performance/capacity verification
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 7
 
 ## References
 - FR: TBD

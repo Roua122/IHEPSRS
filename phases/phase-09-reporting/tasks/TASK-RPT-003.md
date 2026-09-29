@@ -1,6 +1,9 @@
 # TASK-RPT-003 — Basic dashboards
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 7
 
 ## References
 - FR: TBD

@@ -1,6 +1,9 @@
 # TASK-RS-001 — Researcher profile
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 6
 
 ## References
 - FR: TBD

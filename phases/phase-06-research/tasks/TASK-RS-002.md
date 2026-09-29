@@ -1,6 +1,9 @@
 # TASK-RS-002 — Research proposal
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 6
 
 ## References
 - FR: TBD

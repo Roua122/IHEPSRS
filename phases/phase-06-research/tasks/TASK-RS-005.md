@@ -1,6 +1,9 @@
 # TASK-RS-005 — Funding metadata/amendments
 
 Status: TODO
+Implementation: DOCUMENTATION_ONLY
+Prototype Priority: N/A
+Owner: Member 6
 
 ## References
 - FR: TBD

@@ -1,6 +1,9 @@
 # TASK-PG-001 — Person/Applicant baseline
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 4
 
 ## References
 - FR: TBD

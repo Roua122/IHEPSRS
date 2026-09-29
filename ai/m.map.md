@@ -5,21 +5,44 @@ Requirement
 → Use Case
 → Business Rule
 → Domain
+→ Prototype Classification
 → Phase
 → Task
 → Code
 → Test
 
-## Rule
-كل Task يجب أن يذكر FR / BR / UC / NFR ذات العلاقة.
+## Prototype classifications
+- IMPLEMENT
+- MOCK
+- DOCUMENTATION_ONLY
+- FUTURE
 
-## Domains → Phases
-- Identity & Access → Phase 02
-- Institutions/Programs → Phase 03
-- Postgraduate → Phase 04
-- Thesis → Phase 05
-- Research → Phase 06
-- Publications → Phase 07
-- Integration → Phase 08
-- Reporting → Phase 09
-- Security/Performance/Accessibility hardening → Phase 10
+## Priority
+- MUST
+- SHOULD
+- N/A
+
+## Domain ownership — 7 members
+- Foundation / IAM → Member 1
+- Institutions / Programs → Member 2
+- Mock SIS / Integration → Member 3
+- Postgraduate / Enrollment → Member 4
+- Thesis / Defense → Member 5
+- Research / Publications → Member 6
+- Dashboard / Audit / QA → Member 7
+
+## Rule
+كل Task يجب أن يذكر:
+- FR / BR / UC / NFR references عندما يتم استخراجها نهائيًا من الـBaseline.
+- Implementation Classification.
+- Prototype Priority.
+- Owner.
+
+## Core demo dependency
+Mock SIS
+→ Integration
+→ Applicant/Application
+→ Enrollment
+→ Thesis
+→ Publication
+→ Dashboard/Audit

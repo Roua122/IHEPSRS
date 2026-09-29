@@ -1,6 +1,9 @@
 # TASK-RPT-001 — KPI definitions implementation
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 7
 
 ## References
 - FR: TBD

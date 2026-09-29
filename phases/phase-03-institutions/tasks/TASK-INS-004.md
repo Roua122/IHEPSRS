@@ -1,6 +1,9 @@
 # TASK-INS-004 — Reference data/versioning
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 2
 
 ## References
 - FR: TBD

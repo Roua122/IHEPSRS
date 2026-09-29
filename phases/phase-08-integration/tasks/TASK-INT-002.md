@@ -1,6 +1,9 @@
 # TASK-INT-002 — Canonical envelope
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 3
 
 ## References
 - FR: TBD

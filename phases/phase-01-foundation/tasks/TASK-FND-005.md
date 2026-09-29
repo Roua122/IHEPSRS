@@ -1,6 +1,9 @@
 # TASK-FND-005 — CI test baseline
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 1
 
 ## References
 - FR: TBD

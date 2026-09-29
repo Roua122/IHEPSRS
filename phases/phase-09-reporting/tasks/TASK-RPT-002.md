@@ -1,6 +1,9 @@
 # TASK-RPT-002 — Reporting snapshots/as-of logic
 
 Status: TODO
+Implementation: DOCUMENTATION_ONLY
+Prototype Priority: N/A
+Owner: Member 7
 
 ## References
 - FR: TBD

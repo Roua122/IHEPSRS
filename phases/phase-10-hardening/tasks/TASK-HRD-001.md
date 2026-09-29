@@ -1,6 +1,9 @@
 # TASK-HRD-001 — Security verification
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 7
 
 ## References
 - FR: TBD

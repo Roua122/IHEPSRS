@@ -1,6 +1,9 @@
 # TASK-TH-001 — Thesis entity/versioning
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 5
 
 ## References
 - FR: TBD

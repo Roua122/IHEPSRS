@@ -1,6 +1,9 @@
 # TASK-HRD-006 — Release readiness
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 7
 
 ## References
 - FR: TBD

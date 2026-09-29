@@ -1,6 +1,9 @@
 # TASK-INT-004 — Stale message protection
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 3
 
 ## References
 - FR: TBD

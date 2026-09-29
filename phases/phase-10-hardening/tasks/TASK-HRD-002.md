@@ -1,6 +1,9 @@
 # TASK-HRD-002 — Accessibility verification
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 7
 
 ## References
 - FR: TBD

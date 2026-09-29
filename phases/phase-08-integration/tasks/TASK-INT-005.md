@@ -1,6 +1,9 @@
 # TASK-INT-005 — Retry/failure/quarantine
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 3
 
 ## References
 - FR: TBD

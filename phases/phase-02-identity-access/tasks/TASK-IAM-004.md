@@ -1,6 +1,9 @@
 # TASK-IAM-004 — Delegation model
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 1
 
 ## References
 - FR: TBD

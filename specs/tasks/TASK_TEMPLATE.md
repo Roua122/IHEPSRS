@@ -1,6 +1,9 @@
 # TASK-XXX — Task Name
 
 Status: TODO
+Implementation: IMPLEMENT | MOCK | DOCUMENTATION_ONLY | FUTURE
+Prototype Priority: MUST | SHOULD | N/A
+Owner: Member X
 
 ## Phase
 
@@ -12,6 +15,9 @@ Status: TODO
 - ADR:
 
 ## Goal
+
+## Prototype relevance
+كيف تدعم هذه المهمة سيناريو العرض؟
 
 ## Preconditions
 

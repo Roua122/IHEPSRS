@@ -1,6 +1,9 @@
 # TASK-PUB-002 — DOI uniqueness/mapping
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 6
 
 ## References
 - FR: TBD

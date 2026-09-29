@@ -1,6 +1,9 @@
 # TASK-PUB-005 — External author linking
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 6
 
 ## References
 - FR: TBD

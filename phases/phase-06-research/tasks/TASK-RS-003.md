@@ -1,6 +1,9 @@
 # TASK-RS-003 — Project lifecycle
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 6
 
 ## References
 - FR: TBD

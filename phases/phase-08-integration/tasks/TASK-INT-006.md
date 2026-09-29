@@ -1,6 +1,9 @@
 # TASK-INT-006 — Legacy batch/file integration
 
 Status: TODO
+Implementation: DOCUMENTATION_ONLY
+Prototype Priority: N/A
+Owner: Member 3
 
 ## References
 - FR: TBD

@@ -1,6 +1,9 @@
 # TASK-PG-003 — Review and NeedMoreInfo
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 4
 
 ## References
 - FR: TBD

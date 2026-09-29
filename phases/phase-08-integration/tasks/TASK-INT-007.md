@@ -1,6 +1,9 @@
 # TASK-INT-007 — Integration observability
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 3
 
 ## References
 - FR: TBD

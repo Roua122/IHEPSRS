@@ -2,6 +2,22 @@
 
 هذا المستودع هو مرجع العمل والتنفيذ لفريق مشروع **IHEPSRS** في مقرر تكامل وعمارة الأنظمة.
 
+## Implementation Mode — Academic Prototype
+
+التنفيذ الحالي هو **Prototype / Proof of Concept** لمحاكاة النظام المتكامل، وليس تنفيذ النظام الوطني الكامل.
+
+قبل بدء البرمجة اقرأ:
+- `PROTOTYPE_README.md`
+- `docs/21_prototype_scope.md`
+- `docs/22_demo_scenario.md`
+
+وثيقة التحليل الكاملة تظل **Source of Truth** للمتطلبات، بينما `21_prototype_scope.md`
+يحدد ما سيتم برمجته فعليًا في المشروع الأكاديمي.
+
+الفريق مكوّن من **7 أعضاء**، والتوزيع المقترح موجود في:
+`docs/24_team_work_allocation.md`
+
+
 ## Source of Truth
 المرجع الأعلى للمتطلبات وقواعد الأعمال هو:
 `docs/reference/IHEPSRS_Final_Analysis_Baseline_v3_ReviewClosed_AR.docx`

@@ -1,6 +1,9 @@
 # TASK-INT-003 — Idempotency and duplicate handling
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 3
 
 ## References
 - FR: TBD

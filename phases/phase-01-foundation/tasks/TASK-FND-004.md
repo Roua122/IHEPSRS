@@ -1,6 +1,9 @@
 # TASK-FND-004 — Logging and correlation baseline
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 1
 
 ## References
 - FR: TBD

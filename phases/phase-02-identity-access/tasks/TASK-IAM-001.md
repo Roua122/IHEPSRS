@@ -1,6 +1,9 @@
 # TASK-IAM-001 — User/account model
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 1
 
 ## References
 - FR: TBD

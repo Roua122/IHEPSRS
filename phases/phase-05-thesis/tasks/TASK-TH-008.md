@@ -1,6 +1,9 @@
 # TASK-TH-008 — Final approval/archive
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 5
 
 ## References
 - FR: TBD

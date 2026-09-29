@@ -1,6 +1,9 @@
 # TASK-HRD-004 — Backup/restore verification
 
 Status: TODO
+Implementation: DOCUMENTATION_ONLY
+Prototype Priority: N/A
+Owner: Member 7
 
 ## References
 - FR: TBD

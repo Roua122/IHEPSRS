@@ -1,6 +1,9 @@
 # TASK-FND-003 — Common error model
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 1
 
 ## References
 - FR: TBD

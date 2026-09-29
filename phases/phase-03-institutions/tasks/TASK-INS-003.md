@@ -1,6 +1,9 @@
 # TASK-INS-003 — Academic programs and effective dating
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 2
 
 ## References
 - FR: TBD

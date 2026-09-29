@@ -1,6 +1,9 @@
 # TASK-RS-006 — Research outputs
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: SHOULD
+Owner: Member 6
 
 ## References
 - FR: TBD

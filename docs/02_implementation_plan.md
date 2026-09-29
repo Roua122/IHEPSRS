@@ -1,33 +1,37 @@
-# Implementation Plan
+# Implementation Plan — Prototype Execution
 
-## Phase 01 — Foundation
-تهيئة المشروع، conventions، environments، project skeleton، common error model.
+> الـPhases هنا تنظيم للعمل وليست Waterfall صارمًا.
 
-## Phase 02 — Identity & Access
-Users, roles, scopes, authentication, authorization, delegation baseline.
+## Stage A — Shared Foundation
+- Phase 01 — Foundation
+- الحد الأدنى من Phase 02 — Identity & Access
+- الحد الأدنى من Phase 03 — Institutions & Programs
 
-## Phase 03 — Institution & Reference Data
-Institutions, organizational units, programs, reference data, effective dating.
+الهدف: Repository قابل للتشغيل، Auth/RBAC، بيانات مؤسسة/برنامج تجريبية.
 
-## Phase 04 — Postgraduate
-Applicant/Person, applications, reviews, decisions, enrollment lifecycle.
+## Stage B — Parallel Domain Work
+بعد ثبات الأساس يمكن العمل بالتوازي:
+- Member 3: Mock University + Integration
+- Member 4: Postgraduate
+- Member 5: Thesis
+- Member 6: Research/Publications
+- Member 7: Dashboard/Audit/QA
 
-## Phase 05 — Thesis
-Thesis lifecycle, versions, supervisors, proposal, defense, corrections, approval.
+## Stage C — Vertical Integration
+ربط:
+`Mock SIS → Integration → PG → Thesis → Publication → Dashboard/Audit`
 
-## Phase 06 — Research
-Researchers, proposals, projects, members, funding metadata, outputs.
+## Stage D — Hardening for Demo
+- Security checks
+- Accessibility basics
+- Error handling
+- Demo seed data
+- Acceptance tests
+- Release/demo preparation
 
-## Phase 07 — Publications
-Publication registry, DOI uniqueness/mapping, authors, affiliations.
+## Rule
+الأولوية ليست إكمال جميع Full-System requirements؛ الأولوية هي إكمال
+`docs/22_demo_scenario.md`.
 
-## Phase 08 — Integration
-Integration systems, canonical messages, idempotency, stale messages, retries, quarantine.
-
-## Phase 09 — Reporting
-Dashboards, KPIs, snapshots/read models as required.
-
-## Phase 10 — Hardening
-Security tests, observability, DR readiness, accessibility, performance, release readiness.
-
-> التفاصيل الفنية التي لم يحسمها التحليل تُسجل كـ Design Decisions.
+## Production-only concerns
+العناصر المصنفة `DOCUMENTATION_ONLY` تظل مخرجات Architecture/Documentation ولا تعطل إغلاق الـPrototype.

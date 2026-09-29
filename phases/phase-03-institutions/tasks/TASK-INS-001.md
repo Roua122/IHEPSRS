@@ -1,6 +1,9 @@
 # TASK-INS-001 — Institution registry
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 2
 
 ## References
 - FR: TBD

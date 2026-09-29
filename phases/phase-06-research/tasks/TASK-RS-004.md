@@ -1,6 +1,9 @@
 # TASK-RS-004 — Members/leader changes
 
 Status: TODO
+Implementation: DOCUMENTATION_ONLY
+Prototype Priority: N/A
+Owner: Member 6
 
 ## References
 - FR: TBD

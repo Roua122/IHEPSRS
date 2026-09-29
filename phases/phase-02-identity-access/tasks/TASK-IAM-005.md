@@ -1,6 +1,9 @@
 # TASK-IAM-005 — Authentication/session security
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 1
 
 ## References
 - FR: TBD

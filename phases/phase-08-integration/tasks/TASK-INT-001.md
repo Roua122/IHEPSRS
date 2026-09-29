@@ -1,6 +1,9 @@
 # TASK-INT-001 — Integration system onboarding
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 3
 
 ## References
 - FR: TBD

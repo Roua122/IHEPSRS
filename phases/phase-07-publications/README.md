@@ -14,3 +14,10 @@
 
 ## Completion
 يعتبر الـPhase مكتملًا عندما تنتهي جميع Must Tasks وتنجح اختبارات القبول المرتبطة.
+
+## Prototype rule
+قبل تنفيذ أي مهمة في هذه المرحلة:
+- اقرأ `docs/21_prototype_scope.md`.
+- نفذ فقط حسب قيمة `Implementation`.
+- أعط الأولوية لـ`MUST`.
+- `DOCUMENTATION_ONLY` لا تتحول إلى بنية Production.

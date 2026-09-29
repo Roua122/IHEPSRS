@@ -1,6 +1,9 @@
 # TASK-TH-006 — Defense outcomes
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 5
 
 ## References
 - FR: TBD

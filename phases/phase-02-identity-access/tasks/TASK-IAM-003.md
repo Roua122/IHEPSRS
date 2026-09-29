@@ -1,6 +1,9 @@
 # TASK-IAM-003 — Scope-aware authorization
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 1
 
 ## References
 - FR: TBD

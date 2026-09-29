@@ -55,3 +55,34 @@ git pull
 ## قاعدة الفريق
 لا ترسلوا ZIP بين بعضكم بعد إنشاء GitHub.
 GitHub يصبح النسخة المشتركة، وكل شخص يستخدم Clone/Pull/Push.
+
+## Team workflow — 7 members
+
+استخدموا Branch لكل Task وليس Branch دائم لكل عضو:
+
+```bash
+git checkout main
+git pull
+git checkout -b feature/TASK-ID-short-name
+```
+
+بعد الانتهاء:
+```bash
+git add .
+git commit -m "TASK-ID: short description"
+git push -u origin feature/TASK-ID-short-name
+```
+
+ثم Pull Request ومراجعة من عضو آخر.
+
+### قبل `git init`
+تأكد أن Terminal داخل **المجلد الذي يحتوي مباشرة على `README.md` و`docs/` و`ai/` و`phases/`**،
+حتى لا يتم إنشاء Repository وفي داخله مجلد مشروع إضافي.
+
+### Ownership
+راجع:
+`docs/24_team_work_allocation.md`
+
+### مهم
+لا يوجد Branch اسمه `member-1` أو `member-2` للعمل الدائم.
+الفروع مرتبطة بالمهام حتى يسهل الدمج والمراجعة.

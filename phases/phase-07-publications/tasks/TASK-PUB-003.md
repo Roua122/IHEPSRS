@@ -1,6 +1,9 @@
 # TASK-PUB-003 — Authors and author ordering
 
 Status: TODO
+Implementation: IMPLEMENT
+Prototype Priority: MUST
+Owner: Member 6
 
 ## References
 - FR: TBD
