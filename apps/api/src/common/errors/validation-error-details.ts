@@ -1,4 +1,4 @@
-import type { ValidationError } from 'class-validator';
+import type { ValidationError } from "class-validator";
 
 export interface ValidationIssue {
   field: string;
@@ -7,7 +7,7 @@ export interface ValidationIssue {
 
 export function flattenValidationErrors(
   errors: ValidationError[],
-  parentPath = '',
+  parentPath = "",
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 

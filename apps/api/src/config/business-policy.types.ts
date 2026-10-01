@@ -8,6 +8,6 @@ export interface BusinessPolicyVersion {
 }
 
 export interface BusinessPolicyDocument {
-  schemaVersion: '1.0';
+  schemaVersion: "1.0";
   policies: BusinessPolicyVersion[];
 }

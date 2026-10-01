@@ -13,8 +13,8 @@
     "build": "pnpm --filter @ihepsrs/contracts build && pnpm --filter @ihepsrs/api build && pnpm --filter @ihepsrs/mock-university build && pnpm --filter @ihepsrs/web build",
     "typecheck": "pnpm --filter @ihepsrs/contracts build && pnpm --filter @ihepsrs/api typecheck && pnpm --filter @ihepsrs/mock-university typecheck && pnpm --filter @ihepsrs/web typecheck",
     "test": "pnpm -r --if-present test",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,cjs,mjs,json,css,html}\" \"packages/**/*.{ts,tsx,js,cjs,mjs,json}\" \"*.{json,yaml,yml}\" \".github/**/*.{yml,yaml}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,cjs,mjs,json,css,html}\" \"packages/**/*.{ts,tsx,js,cjs,mjs,json}\" \"*.{json,yaml,yml}\" \".github/**/*.{yml,yaml}\"",
     "config:check": "pnpm --filter @ihepsrs/api config:check",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down"

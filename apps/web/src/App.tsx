@@ -1,4 +1,4 @@
-import { Alert, Container, Stack, Typography } from '@mui/material';
+import { Alert, Container, Stack, Typography } from "@mui/material";
 
 export function App() {
   return (
@@ -13,7 +13,8 @@ export function App() {
         </Typography>
 
         <Alert severity="info">
-          Foundation scaffold جاهز. الصفحات الوظيفية ستتم إضافتها حسب Tasks المعتمدة.
+          Foundation scaffold جاهز. الصفحات الوظيفية ستتم إضافتها حسب Tasks
+          المعتمدة.
         </Alert>
       </Stack>
     </Container>

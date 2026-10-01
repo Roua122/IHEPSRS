@@ -1,11 +1,8 @@
-import {
-  HttpStatus,
-  ValidationPipe,
-} from '@nestjs/common';
+import { HttpStatus, ValidationPipe } from "@nestjs/common";
 
-import { AppException } from '../errors/app-exception';
-import { ErrorCode } from '../errors/error-code';
-import { flattenValidationErrors } from '../errors/validation-error-details';
+import { AppException } from "../errors/app-exception";
+import { ErrorCode } from "../errors/error-code";
+import { flattenValidationErrors } from "../errors/validation-error-details";
 
 export function createValidationPipe(): ValidationPipe {
   return new ValidationPipe({
@@ -16,7 +13,7 @@ export function createValidationPipe(): ValidationPipe {
       new AppException({
         status: HttpStatus.BAD_REQUEST,
         code: ErrorCode.Validation,
-        message: 'Request validation failed',
+        message: "Request validation failed",
         details: flattenValidationErrors(errors),
       }),
   });

@@ -1,6 +1,6 @@
-import { HttpStatus } from '@nestjs/common';
+import { HttpStatus } from "@nestjs/common";
 
-import { ErrorCode } from './error-code';
+import { ErrorCode } from "./error-code";
 
 export function errorCodeFromStatus(status: number): string {
   switch (status) {

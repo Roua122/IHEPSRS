@@ -1,8 +1,5 @@
 export type IntegrationMessageType =
-  | 'StudentUpsert'
-  | 'ResearcherUpsert'
-  | 'ProgramUpsert'
-  | 'PublicationUpsert';
+  "StudentUpsert" | "ResearcherUpsert" | "ProgramUpsert" | "PublicationUpsert";
 
 export interface IntegrationEnvelope<TPayload = unknown> {
   messageId: string;
@@ -25,6 +22,6 @@ export interface StudentUpsertPayload {
 
 export interface HealthResponse {
   service: string;
-  status: 'ok';
+  status: "ok";
   timestamp: string;
 }

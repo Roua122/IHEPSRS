@@ -1,27 +1,27 @@
-const fs = require('node:fs');
-const path = require('node:path');
+const fs = require("node:fs");
+const path = require("node:path");
 
 const policyPath = path.resolve(
   process.cwd(),
-  process.env.POLICY_CONFIG_PATH || 'config/policies.json',
+  process.env.POLICY_CONFIG_PATH || "config/policies.json",
 );
 
-const raw = fs.readFileSync(policyPath, 'utf8');
+const raw = fs.readFileSync(policyPath, "utf8");
 const document = JSON.parse(raw);
 
-if (document.schemaVersion !== '1.0') {
-  throw new Error('Unsupported policy schemaVersion');
+if (document.schemaVersion !== "1.0") {
+  throw new Error("Unsupported policy schemaVersion");
 }
 
 if (!Array.isArray(document.policies) || document.policies.length === 0) {
-  throw new Error('At least one policy version is required');
+  throw new Error("At least one policy version is required");
 }
 
 const versions = new Set();
 
 for (const policy of document.policies) {
   if (!policy.policyVersion) {
-    throw new Error('policyVersion is required');
+    throw new Error("policyVersion is required");
   }
 
   if (versions.has(policy.policyVersion)) {

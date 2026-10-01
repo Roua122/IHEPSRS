@@ -1,4 +1,4 @@
-import type { ErrorCode } from './error-code';
+import type { ErrorCode } from "./error-code";
 
 export interface ApiErrorResponse {
   timestamp: string;

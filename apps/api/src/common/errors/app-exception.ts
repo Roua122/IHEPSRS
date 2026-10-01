@@ -1,6 +1,6 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from "@nestjs/common";
 
-import type { ErrorCode } from './error-code';
+import type { ErrorCode } from "./error-code";
 
 export interface AppExceptionOptions {
   code: ErrorCode | string;
