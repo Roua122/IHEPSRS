@@ -1,50 +1,46 @@
-# TASK-FND-002 — Environment / Config Strategy
+# TASK-FND-004 — Logging + Correlation ID
 
-Owner: رؤى محمد  
-Prototype Priority: MUST
+Owner: رؤى محمد
 
-هذه الحزمة تكمل الـFoundation الحالي ولا تستبدل المشروع.
+هذه الحزمة تفترض أن FND-001 وFND-002 وFND-003 قد تم دمجها إلى `main`.
 
-## قبل التطبيق
-يجب أن يكون `TASK-FND-001` شغالًا محليًا على الأقل:
-- API health يعمل.
-- Mock University يعمل.
-- `pnpm typecheck` و `pnpm build` ينجحان بعد Patch v4.1.
+## قبل البدء
 
-## التطبيق
-انسخي **محتويات** هذه الحزمة فوق جذر المشروع الحالي.
-
-ثم:
-
-```powershell
-pnpm install
-pnpm config:check
-pnpm typecheck
-pnpm build
-pnpm dev
-```
-
-بعد التشغيل افتحي:
-
-```text
-http://localhost:3000/api/config/status
-```
-
-لا يجب أن يعرض endpoint أي Secret أو DATABASE_URL.
-
-## Git
-اعملي Branch مستقل للمهمة:
+تأكدي أولًا أن Pull Request الخاصة بـFND-003 أصبحت خضراء وتم دمجها.
 
 ```powershell
 git checkout main
 git pull origin main
-git checkout -b feature/TASK-FND-002-config-strategy
+git checkout -b feature/TASK-FND-004-logging-correlation
 ```
 
-بعد نجاح التحقق:
+ثم انسخي محتويات هذه الحزمة فوق جذر المشروع.
+
+## التحقق
+
+```powershell
+pnpm install
+pnpm typecheck
+pnpm build
+pnpm --filter @ihepsrs/api dev
+```
+
+اتركي الـAPI يعمل، ثم افتحي PowerShell ثانية:
+
+```powershell
+pnpm --filter @ihepsrs/api observability:check
+```
+
+المتوقع:
+
+```text
+Logging/correlation check passed.
+```
+
+## Git
 
 ```powershell
 git add .
-git commit -m "TASK-FND-002: implement environment and policy configuration strategy"
-git push -u origin feature/TASK-FND-002-config-strategy
+git commit -m "TASK-FND-004: implement structured logging and correlation IDs"
+git push -u origin feature/TASK-FND-004-logging-correlation
 ```

@@ -1,8 +1,8 @@
-import { createTheme } from '@mui/material';
+import { createTheme } from "@mui/material";
 
 export const theme = createTheme({
-  direction: 'rtl',
+  direction: "rtl",
   typography: {
-    fontFamily: 'system-ui, Arial, sans-serif',
+    fontFamily: "system-ui, Arial, sans-serif",
   },
 });

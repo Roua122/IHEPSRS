@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import type {
   BusinessPolicyDocument,
   BusinessPolicyVersion,
   PolicyValue,
-} from './business-policy.types';
+} from "./business-policy.types";
 
 @Injectable()
 export class BusinessPolicyService {
@@ -15,10 +15,10 @@ export class BusinessPolicyService {
 
   constructor(private readonly config: ConfigService) {
     const configuredPath =
-      this.config.get<string>('POLICY_CONFIG_PATH') ?? 'config/policies.json';
+      this.config.get<string>("POLICY_CONFIG_PATH") ?? "config/policies.json";
 
     const absolutePath = resolve(process.cwd(), configuredPath);
-    const raw = readFileSync(absolutePath, 'utf8');
+    const raw = readFileSync(absolutePath, "utf8");
 
     this.document = this.validateDocument(JSON.parse(raw) as unknown);
   }
@@ -58,18 +58,18 @@ export class BusinessPolicyService {
   }
 
   private validateDocument(input: unknown): BusinessPolicyDocument {
-    if (!input || typeof input !== 'object') {
-      throw new Error('Policy configuration must be a JSON object');
+    if (!input || typeof input !== "object") {
+      throw new Error("Policy configuration must be a JSON object");
     }
 
     const candidate = input as Partial<BusinessPolicyDocument>;
 
-    if (candidate.schemaVersion !== '1.0') {
-      throw new Error('Unsupported policy configuration schemaVersion');
+    if (candidate.schemaVersion !== "1.0") {
+      throw new Error("Unsupported policy configuration schemaVersion");
     }
 
     if (!Array.isArray(candidate.policies) || candidate.policies.length === 0) {
-      throw new Error('Policy configuration must contain at least one policy');
+      throw new Error("Policy configuration must contain at least one policy");
     }
 
     const seenVersions = new Set<string>();
@@ -77,10 +77,10 @@ export class BusinessPolicyService {
     for (const policy of candidate.policies) {
       if (
         !policy ||
-        typeof policy.policyVersion !== 'string' ||
+        typeof policy.policyVersion !== "string" ||
         !policy.policyVersion.trim()
       ) {
-        throw new Error('Every policy requires a policyVersion');
+        throw new Error("Every policy requires a policyVersion");
       }
 
       if (seenVersions.has(policy.policyVersion)) {
@@ -109,7 +109,7 @@ export class BusinessPolicyService {
         );
       }
 
-      if (!policy.values || typeof policy.values !== 'object') {
+      if (!policy.values || typeof policy.values !== "object") {
         throw new Error(`Policy ${policy.policyVersion} requires values`);
       }
     }

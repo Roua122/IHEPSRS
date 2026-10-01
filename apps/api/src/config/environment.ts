@@ -1,4 +1,4 @@
-export type NodeEnvironment = 'development' | 'test' | 'production';
+export type NodeEnvironment = "development" | "test" | "production";
 
 export interface ValidatedEnvironment {
   nodeEnv: NodeEnvironment;
@@ -16,7 +16,8 @@ function asNonEmptyString(
   fallback: string | undefined,
   name: string,
 ): string {
-  const resolved = typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  const resolved =
+    typeof value === "string" && value.trim() ? value.trim() : fallback;
 
   if (!resolved) {
     throw new Error(`Missing required configuration: ${name}`);
@@ -26,7 +27,8 @@ function asNonEmptyString(
 }
 
 function asPort(value: unknown, fallback: number, name: string): number {
-  const raw = typeof value === 'string' && value.trim() ? value : String(fallback);
+  const raw =
+    typeof value === "string" && value.trim() ? value : String(fallback);
   const parsed = Number(raw);
 
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
@@ -41,40 +43,38 @@ export function validateEnvironment(
 ): Record<string, unknown> {
   const nodeEnvRaw = asNonEmptyString(
     input.NODE_ENV,
-    'development',
-    'NODE_ENV',
+    "development",
+    "NODE_ENV",
   );
 
-  if (!['development', 'test', 'production'].includes(nodeEnvRaw)) {
-    throw new Error(
-      'NODE_ENV must be one of: development, test, production',
-    );
+  if (!["development", "test", "production"].includes(nodeEnvRaw)) {
+    throw new Error("NODE_ENV must be one of: development, test, production");
   }
 
   const validated: ValidatedEnvironment = {
     nodeEnv: nodeEnvRaw as NodeEnvironment,
-    appVersion: asNonEmptyString(input.APP_VERSION, '0.1.2', 'APP_VERSION'),
-    apiPort: asPort(input.API_PORT, 3000, 'API_PORT'),
+    appVersion: asNonEmptyString(input.APP_VERSION, "0.1.2", "APP_VERSION"),
+    apiPort: asPort(input.API_PORT, 3000, "API_PORT"),
     corsOrigin: asNonEmptyString(
       input.CORS_ORIGIN,
-      'http://localhost:5173',
-      'CORS_ORIGIN',
+      "http://localhost:5173",
+      "CORS_ORIGIN",
     ),
-    logLevel: asNonEmptyString(input.LOG_LEVEL, 'info', 'LOG_LEVEL'),
+    logLevel: asNonEmptyString(input.LOG_LEVEL, "info", "LOG_LEVEL"),
     integrationContractVersion: asNonEmptyString(
       input.INTEGRATION_CONTRACT_VERSION,
-      '1.0',
-      'INTEGRATION_CONTRACT_VERSION',
+      "1.0",
+      "INTEGRATION_CONTRACT_VERSION",
     ),
     policyConfigPath: asNonEmptyString(
       input.POLICY_CONFIG_PATH,
-      'config/policies.json',
-      'POLICY_CONFIG_PATH',
+      "config/policies.json",
+      "POLICY_CONFIG_PATH",
     ),
     databaseUrl: asNonEmptyString(
       input.DATABASE_URL,
       undefined,
-      'DATABASE_URL',
+      "DATABASE_URL",
     ),
   };
 

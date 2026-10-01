@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { resolve } from 'node:path';
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { resolve } from "node:path";
 
-import { ConfigurationModule } from './config/configuration.module';
-import { validateEnvironment } from './config/environment';
-import { HealthController } from './health.controller';
+import { ConfigurationModule } from "./config/configuration.module";
+import { validateEnvironment } from "./config/environment";
+import { HealthController } from "./health.controller";
 
 @Module({
   imports: [
@@ -12,8 +12,8 @@ import { HealthController } from './health.controller';
       isGlobal: true,
       cache: true,
       envFilePath: [
-        resolve(process.cwd(), '../../.env'),
-        resolve(process.cwd(), '.env'),
+        resolve(process.cwd(), "../../.env"),
+        resolve(process.cwd(), ".env"),
       ],
       validate: validateEnvironment,
     }),
@@ -21,4 +21,4 @@ import { HealthController } from './health.controller';
   ],
   controllers: [HealthController],
 })
-export class AppModule { }
+export class AppModule {}
