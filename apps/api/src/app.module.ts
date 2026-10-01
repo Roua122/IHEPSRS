@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { ConfigurationModule } from "./config/configuration.module";
 import { validateEnvironment } from "./config/environment";
 import { HealthController } from "./health.controller";
+import { IdentityModule } from "./identity/identity.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { HealthController } from "./health.controller";
       validate: validateEnvironment,
     }),
     ConfigurationModule,
+    IdentityModule,
   ],
   controllers: [HealthController],
 })
