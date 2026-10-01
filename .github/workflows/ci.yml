@@ -8,28 +8,30 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22.18.0
+          package-manager-cache: false
 
       - name: Install pnpm
-        run: npm install -g pnpm@12.8.1
+        run: npm install --global pnpm@12.8.1
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
-      - name: Format check
-        run: pnpm format:check
+      - name: Quality gate
+        run: pnpm quality
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Configuration check
+        run: pnpm config:check
 
-      - name: Build
-        run: pnpm build
+      - name: Runtime smoke tests
+        run: pnpm test:smoke
