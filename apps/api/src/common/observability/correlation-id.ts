@@ -1,11 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
-export const CORRELATION_ID_HEADER = 'x-correlation-id';
+export const CORRELATION_ID_HEADER = "x-correlation-id";
 
 const MAX_CORRELATION_ID_LENGTH = 128;
 
 export function normalizeOrCreateCorrelationId(value: unknown): string {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const normalized = value.trim();
 
     if (

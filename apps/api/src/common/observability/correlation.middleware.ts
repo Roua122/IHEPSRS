@@ -1,11 +1,11 @@
-import type { NextFunction, Request, Response } from 'express';
+import type { NextFunction, Request, Response } from "express";
 
 import {
   CORRELATION_ID_HEADER,
   normalizeOrCreateCorrelationId,
-} from './correlation-id';
-import { runWithCorrelationId } from './correlation-context';
-import { writeStructuredLog } from './structured-log';
+} from "./correlation-id";
+import { runWithCorrelationId } from "./correlation-context";
+import { writeStructuredLog } from "./structured-log";
 
 export interface CorrelatedRequest extends Request {
   correlationId?: string;
@@ -28,19 +28,19 @@ export function correlationMiddleware(
 
   runWithCorrelationId(correlationId, () => {
     writeStructuredLog({
-      level: 'info',
-      event: 'http.request.started',
+      level: "info",
+      event: "http.request.started",
       method: request.method,
       path: request.originalUrl ?? request.url,
     });
 
-    response.on('finish', () => {
+    response.on("finish", () => {
       const finishedAt = process.hrtime.bigint();
       const durationMs = Number(finishedAt - startedAt) / 1_000_000;
 
       writeStructuredLog({
-        level: response.statusCode >= 500 ? 'error' : 'info',
-        event: 'http.request.completed',
+        level: response.statusCode >= 500 ? "error" : "info",
+        event: "http.request.completed",
         method: request.method,
         path: request.originalUrl ?? request.url,
         statusCode: response.statusCode,

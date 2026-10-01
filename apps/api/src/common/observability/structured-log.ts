@@ -1,6 +1,6 @@
-import { getCorrelationId } from './correlation-context';
+import { getCorrelationId } from "./correlation-context";
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface StructuredLogEvent {
   level: LogLevel;
@@ -24,13 +24,13 @@ export function writeStructuredLog(event: StructuredLogEvent): void {
   const serialized = JSON.stringify(entry);
 
   switch (event.level) {
-    case 'error':
+    case "error":
       console.error(serialized);
       break;
-    case 'warn':
+    case "warn":
       console.warn(serialized);
       break;
-    case 'debug':
+    case "debug":
       console.debug(serialized);
       break;
     default:
