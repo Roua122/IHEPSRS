@@ -1,6 +1,6 @@
 {
   "name": "@ihepsrs/api",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
@@ -10,7 +10,8 @@
     "config:check": "node scripts/check-config.cjs",
     "error-model:check": "node scripts/check-error-model.cjs",
     "observability:check": "node scripts/check-observability.cjs",
-    "test": "echo \"Backend automated test suite is completed in TASK-FND-005\""
+    "iam001:check": "pnpm build && node scripts/check-iam001.cjs",
+    "test": "pnpm iam001:check"
   },
   "dependencies": {
     "@ihepsrs/contracts": "workspace:*",

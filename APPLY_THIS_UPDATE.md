@@ -1,26 +1,37 @@
-# TASK-FND-005 — CI / Test Baseline
+# TASK-IAM-001 — User/account model
 
-Owner: رؤى محمد
+Owner: رؤى محمد  
+Implementation: IMPLEMENT  
+Prototype Priority: MUST
 
-طبقي هذه الحزمة فقط بعد دمج FND-003 وFND-004 إلى `main`.
+هذه الحزمة مبنية فوق `main` بعد دمج FND-005.
 
-## 1) تحديث main وفتح Branch
+## حدود المهمة
+
+تنفذ هذه الحزمة **نموذج Person/UserAccount ودورة حياة الحساب الأساسية** فقط.
+
+لا تنفذ هنا:
+- Role catalogue الكامل — `TASK-IAM-002`
+- Scope-aware authorization — `TASK-IAM-003`
+- RoleDelegation — `TASK-IAM-004`
+- Login/JWT/Logout/MFA/Session security — `TASK-IAM-005`
+
+لهذا السبب لا تنشر IAM-001 أي HTTP write endpoint حساس قبل وجود Authorization/Authentication.
+الواجهة المضافة هي **Model Preview** فقط ولا تعرض بيانات مستخدمين حقيقية.
+
+## Branch
 
 ```powershell
 git checkout main
 git pull origin main
-git log --oneline -7
-git checkout -b feature/TASK-FND-005-ci-test-baseline
+git checkout -b feature/TASK-IAM-001-user-account-model
 ```
 
-يجب أن يظهر في التاريخ دمج FND-004 قبل إنشاء الفرع.
+إذا كنتِ أنشأتِ مسبقًا `feature/TASK-IAM-001` فاستخدميه بدل إنشاء فرع جديد.
 
-## 2) انسخي محتويات الحزمة
+## التطبيق
 
-انسخي محتويات مجلد `IHEPSRS_FND_005_CI_Test_Baseline_v4_6`
-فوق جذر مشروع IHEPSRS.
-
-## 3) تحقق محلي
+انسخي محتويات هذه الحزمة فوق جذر المشروع ثم:
 
 ```powershell
 pnpm install
@@ -28,29 +39,42 @@ pnpm format
 pnpm format:check
 pnpm typecheck
 pnpm build
-pnpm config:check
-pnpm test:smoke
+pnpm --filter @ihepsrs/api iam001:check
 ```
 
-الـSmoke Test يستخدم منافذ اختبار مستقلة:
-- Central API: 3300
-- Mock University: 3400
+## التشغيل المرئي
 
-لذلك لا يتعارض عادةً مع `pnpm dev` على 3000/3100.
+Terminal 1:
 
-المتوقع:
+```powershell
+pnpm --filter @ihepsrs/api dev
+```
+
+Terminal 2:
+
+```powershell
+pnpm --filter @ihepsrs/web dev
+```
+
+ثم افتحي:
 
 ```text
-CI smoke baseline passed.
+http://localhost:5173/settings/users
 ```
 
-## 4) Git
+المفروض تظهر شاشة "نموذج حساب المستخدم" وتقرأ الـcanonical model من:
+
+```text
+GET http://localhost:3000/api/identity/account-model
+```
+
+## Git
 
 ```powershell
 git status
 git add .
-git commit -m "TASK-FND-005: establish CI and smoke-test baseline"
-git push -u origin feature/TASK-FND-005-ci-test-baseline
+git commit -m "TASK-IAM-001: implement user account domain model"
+git push -u origin feature/TASK-IAM-001-user-account-model
 ```
 
-ثم افتحي Pull Request إلى `main`.
+أو استخدمي اسم الفرع الحالي إن كان `feature/TASK-IAM-001`.
