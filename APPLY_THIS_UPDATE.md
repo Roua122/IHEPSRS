@@ -1,50 +1,49 @@
-# TASK-FND-002 — Environment / Config Strategy
+# TASK-FND-003 — Common Error Model
 
-Owner: رؤى محمد  
-Prototype Priority: MUST
+Owner: رؤى محمد
 
-هذه الحزمة تكمل الـFoundation الحالي ولا تستبدل المشروع.
+هذه الحزمة تكمل FND-001 وFND-002 ولا تستبدل المشروع.
 
 ## قبل التطبيق
-يجب أن يكون `TASK-FND-001` شغالًا محليًا على الأقل:
-- API health يعمل.
-- Mock University يعمل.
-- `pnpm typecheck` و `pnpm build` ينجحان بعد Patch v4.1.
+يجب أن تكون تغييرات FND-002 مدمجة إلى `main`.
 
-## التطبيق
-انسخي **محتويات** هذه الحزمة فوق جذر المشروع الحالي.
+## Branch
 
-ثم:
+```powershell
+git checkout main
+git pull origin main
+git checkout -b feature/TASK-FND-003-common-error-model
+```
+
+ثم انسخي محتويات هذه الحزمة فوق جذر المشروع.
+
+## التحقق
 
 ```powershell
 pnpm install
-pnpm config:check
 pnpm typecheck
 pnpm build
 pnpm dev
 ```
 
-بعد التشغيل افتحي:
-
-```text
-http://localhost:3000/api/config/status
-```
-
-لا يجب أن يعرض endpoint أي Secret أو DATABASE_URL.
-
-## Git
-اعملي Branch مستقل للمهمة:
+اتركي `pnpm dev` يعمل، وافتحي PowerShell ثانية:
 
 ```powershell
-git checkout main
-git pull origin main
-git checkout -b feature/TASK-FND-002-config-strategy
+pnpm --filter @ihepsrs/api error-model:check
 ```
 
-بعد نجاح التحقق:
+أو افتحي:
+
+```text
+http://localhost:3000/api/does-not-exist
+```
+
+المتوقع HTTP 404 مع Error Envelope موحد.
+
+## Git
 
 ```powershell
 git add .
-git commit -m "TASK-FND-002: implement environment and policy configuration strategy"
-git push -u origin feature/TASK-FND-002-config-strategy
+git commit -m "TASK-FND-003: implement common API error model"
+git push -u origin feature/TASK-FND-003-common-error-model
 ```

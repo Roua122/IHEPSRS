@@ -5,16 +5,22 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { createValidationPipe } from './common/pipes/create-validation-pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
   app.setGlobalPrefix('api');
+
   app.enableCors({
     origin: config.getOrThrow<string>('CORS_ORIGIN'),
     credentials: true,
   });
+
+  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalPipes(createValidationPipe());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('IHEPSRS API')
