@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ihepsrs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ihepsrs}
+      POSTGRES_USER: ${POSTGRES_USER:-ihepsrs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ihepsrs_dev_only}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ihepsrs_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ihepsrs} -d ${POSTGRES_DB:-ihepsrs}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ihepsrs_postgres_data:

@@ -1,0 +1,25 @@
+{
+  "name": "ihepsrs",
+  "version": "0.1.1",
+  "private": true,
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=22.18 <25",
+    "pnpm": ">=12 <13"
+  },
+  "scripts": {
+    "predev": "pnpm --filter @ihepsrs/contracts build",
+    "dev": "pnpm -r --parallel --if-present dev",
+    "build": "pnpm --filter @ihepsrs/contracts build && pnpm --filter @ihepsrs/api build && pnpm --filter @ihepsrs/mock-university build && pnpm --filter @ihepsrs/web build",
+    "typecheck": "pnpm --filter @ihepsrs/contracts build && pnpm --filter @ihepsrs/api typecheck && pnpm --filter @ihepsrs/mock-university typecheck && pnpm --filter @ihepsrs/web typecheck",
+    "test": "pnpm -r --if-present test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9",
+    "typescript": "6.0.3"
+  }
+}
