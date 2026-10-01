@@ -1,18 +1,17 @@
-# TASK-FND-003 — Common Error Model
+# TASK-FND-004 — Logging + Correlation ID
 
 Owner: رؤى محمد
 
-هذه الحزمة تكمل FND-001 وFND-002 ولا تستبدل المشروع.
+هذه الحزمة تفترض أن FND-001 وFND-002 وFND-003 قد تم دمجها إلى `main`.
 
-## قبل التطبيق
-يجب أن تكون تغييرات FND-002 مدمجة إلى `main`.
+## قبل البدء
 
-## Branch
+تأكدي أولًا أن Pull Request الخاصة بـFND-003 أصبحت خضراء وتم دمجها.
 
 ```powershell
 git checkout main
 git pull origin main
-git checkout -b feature/TASK-FND-003-common-error-model
+git checkout -b feature/TASK-FND-004-logging-correlation
 ```
 
 ثم انسخي محتويات هذه الحزمة فوق جذر المشروع.
@@ -23,27 +22,25 @@ git checkout -b feature/TASK-FND-003-common-error-model
 pnpm install
 pnpm typecheck
 pnpm build
-pnpm dev
+pnpm --filter @ihepsrs/api dev
 ```
 
-اتركي `pnpm dev` يعمل، وافتحي PowerShell ثانية:
+اتركي الـAPI يعمل، ثم افتحي PowerShell ثانية:
 
 ```powershell
-pnpm --filter @ihepsrs/api error-model:check
+pnpm --filter @ihepsrs/api observability:check
 ```
 
-أو افتحي:
+المتوقع:
 
 ```text
-http://localhost:3000/api/does-not-exist
+Logging/correlation check passed.
 ```
-
-المتوقع HTTP 404 مع Error Envelope موحد.
 
 ## Git
 
 ```powershell
 git add .
-git commit -m "TASK-FND-003: implement common API error model"
-git push -u origin feature/TASK-FND-003-common-error-model
+git commit -m "TASK-FND-004: implement structured logging and correlation IDs"
+git push -u origin feature/TASK-FND-004-logging-correlation
 ```

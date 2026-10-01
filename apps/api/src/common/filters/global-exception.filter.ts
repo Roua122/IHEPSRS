@@ -4,13 +4,16 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-} from "@nestjs/common";
-import type { Request, Response } from "express";
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
 
-import type { ApiErrorResponse } from "../errors/api-error-response";
-import { AppException } from "../errors/app-exception";
-import { ErrorCode } from "../errors/error-code";
-import { errorCodeFromStatus } from "../errors/http-status-error-code";
+import type { ApiErrorResponse } from '../errors/api-error-response';
+import { AppException } from '../errors/app-exception';
+import { ErrorCode } from '../errors/error-code';
+import { errorCodeFromStatus } from '../errors/http-status-error-code';
+import type { CorrelatedRequest } from '../observability/correlation.middleware';
+import { getCorrelationId } from '../observability/correlation-context';
+import { writeStructuredLog } from '../observability/structured-log';
 
 interface HttpExceptionObject {
   code?: string;
@@ -23,11 +26,15 @@ interface HttpExceptionObject {
 export class GlobalExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
-    const request = context.getRequest<Request>();
+    const request = context.getRequest<CorrelatedRequest>();
     const response = context.getResponse<Response>();
 
     const normalized = this.normalize(exception);
-    const correlationId = this.readCorrelationId(request);
+
+    const correlationId =
+      request.correlationId ??
+      getCorrelationId() ??
+      this.readCorrelationId(request);
 
     const body: ApiErrorResponse = {
       timestamp: new Date().toISOString(),
@@ -41,6 +48,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         ? { details: normalized.details }
         : {}),
     };
+
+    writeStructuredLog({
+      level: normalized.status >= 500 ? 'error' : 'warn',
+      event: 'http.request.failed',
+      message: normalized.message,
+      method: request.method,
+      path: request.originalUrl ?? request.url,
+      statusCode: normalized.status,
+      code: normalized.code,
+      correlationId,
+    });
 
     response.status(normalized.status).json(body);
   }
@@ -64,7 +82,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const response = exception.getResponse();
 
-      if (typeof response === "string") {
+      if (typeof response === 'string') {
         return {
           status,
           code: errorCodeFromStatus(status),
@@ -74,9 +92,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
       const object = response as HttpExceptionObject;
       const rawMessage = object.message;
+
       const message = Array.isArray(rawMessage)
-        ? "Request validation failed"
-        : (rawMessage ?? exception.message);
+        ? 'Request validation failed'
+        : rawMessage ?? exception.message;
 
       return {
         status,
@@ -88,21 +107,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       };
     }
 
+    // Do not expose internal error details to clients.
     return {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: ErrorCode.Internal,
-      message: "An unexpected server error occurred",
+      message: 'An unexpected server error occurred',
     };
   }
 
   private readCorrelationId(request: Request): string | undefined {
-    const header = request.headers["x-correlation-id"];
+    const header = request.headers['x-correlation-id'];
 
     if (Array.isArray(header)) {
       return header[0];
     }
 
-    return typeof header === "string" && header.trim()
+    return typeof header === 'string' && header.trim()
       ? header.trim()
       : undefined;
   }
