@@ -1,33 +1,50 @@
-# Apply Foundation Bootstrap v4
+# TASK-FND-002 — Environment / Config Strategy
 
-هذه الحزمة هي **Update Pack** للمشروع الحالي، وليست Repository جديدًا.
+Owner: رؤى محمد  
+Prototype Priority: MUST
 
-## ما الذي تضيفه؟
-- ADR-001: Technology Stack
-- ADR-002: Architecture Style
-- ADR-003: Monorepo Structure
-- `apps/web`
-- `apps/api`
-- `apps/mock-university`
-- `packages/contracts`
-- pnpm workspace
-- PostgreSQL local development via Docker Compose
-- CI baseline
-- Local development guide
+هذه الحزمة تكمل الـFoundation الحالي ولا تستبدل المشروع.
 
-## طريقة التطبيق
-1. فك الضغط.
-2. انسخ **محتويات** `IHEPSRS_Foundation_Bootstrap_v4` فوق جذر مشروع IHEPSRS الحالي.
-3. وافق على Replace فقط إذا ظهر ملف بنفس الاسم.
-4. لا تحذف `.git`.
+## قبل التطبيق
+يجب أن يكون `TASK-FND-001` شغالًا محليًا على الأقل:
+- API health يعمل.
+- Mock University يعمل.
+- `pnpm typecheck` و `pnpm build` ينجحان بعد Patch v4.1.
 
-بعدها:
+## التطبيق
+انسخي **محتويات** هذه الحزمة فوق جذر المشروع الحالي.
+
+ثم:
 
 ```powershell
-git status
-git add .
-git commit -m "TASK-FND-001: add foundation architecture and workspace scaffold"
-git push
+pnpm install
+pnpm config:check
+pnpm typecheck
+pnpm build
+pnpm dev
 ```
 
-الأفضل تنفيذ هذا على Branch خاص بـTASK-FND-001.
+بعد التشغيل افتحي:
+
+```text
+http://localhost:3000/api/config/status
+```
+
+لا يجب أن يعرض endpoint أي Secret أو DATABASE_URL.
+
+## Git
+اعملي Branch مستقل للمهمة:
+
+```powershell
+git checkout main
+git pull origin main
+git checkout -b feature/TASK-FND-002-config-strategy
+```
+
+بعد نجاح التحقق:
+
+```powershell
+git add .
+git commit -m "TASK-FND-002: implement environment and policy configuration strategy"
+git push -u origin feature/TASK-FND-002-config-strategy
+```
