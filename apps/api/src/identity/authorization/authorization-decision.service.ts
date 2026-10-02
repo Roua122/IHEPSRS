@@ -152,9 +152,10 @@ export class AuthorizationDecisionService {
       }
     }
 
-    const matchedRoleCode = activeCandidates.find((assignment) =>
+    const matchedAssignment = activeCandidates.find((assignment) =>
       isKnownRoleCode(assignment.roleCode),
-    )?.roleCode;
+    );
+    const matchedRoleCode = matchedAssignment?.roleCode;
 
     if (!matchedRoleCode || !isKnownRoleCode(matchedRoleCode)) {
       return this.deny(policy, "NO_ALLOWED_ROLE");
@@ -164,6 +165,7 @@ export class AuthorizationDecisionService {
       allowed: true,
       policyId: policy.policyId,
       matchedRoleCode,
+      delegationId: matchedAssignment?.delegationId,
     };
   }
 

@@ -79,6 +79,19 @@ export class ScopeAuthorizationGuard implements CanActivate {
       throw this.forbidden();
     }
 
+    if (decision.delegationId) {
+      writeStructuredLog({
+        level: "info",
+        event: "security.authorization.delegated",
+        userId: request.authorizationPrincipal?.userId,
+        policyId: policy.policyId,
+        resource: policy.resource,
+        action: policy.action,
+        roleCode: decision.matchedRoleCode,
+        delegationId: decision.delegationId,
+      });
+    }
+
     return true;
   }
 
