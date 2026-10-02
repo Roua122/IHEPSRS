@@ -48,9 +48,7 @@ export function App() {
     <>
       <AppBar position="static" color="default" elevation={1}>
         <Toolbar>
-          <Typography sx={{ flexGrow: 1 }} fontWeight={700}>
-            IHEPSRS
-          </Typography>
+          <Typography sx={{ flexGrow: 1, fontWeight: 700 }}>IHEPSRS</Typography>
 
           <Button component={Link} to="/" color="inherit">
             الرئيسية

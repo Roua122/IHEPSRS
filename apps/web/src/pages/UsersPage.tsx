@@ -86,7 +86,7 @@ export function UsersPage() {
     <Container maxWidth="lg" sx={{ py: 5 }}>
       <Stack spacing={3}>
         <Box>
-          <Typography component="h1" variant="h4" fontWeight={700}>
+          <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
             نموذج حساب المستخدم
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
@@ -104,7 +104,7 @@ export function UsersPage() {
         ) : null}
 
         {!model && !error ? (
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
             <CircularProgress size={24} />
             <Typography>جارٍ تحميل النموذج...</Typography>
           </Stack>
@@ -115,7 +115,7 @@ export function UsersPage() {
             <Paper variant="outlined" sx={{ p: 3 }}>
               <Stack spacing={2}>
                 <Typography variant="h6">حالات الحساب المعتمدة</Typography>
-                <Stack direction="row" gap={1} flexWrap="wrap">
+                <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
                   {model.userAccount.statuses.map((status) => (
                     <Chip
                       key={status}
@@ -163,7 +163,7 @@ export function UsersPage() {
                   تعرض في هذه المعاينة.
                 </Typography>
 
-                <Stack direction="row" gap={1} flexWrap="wrap">
+                <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
                   {model.person.fields
                     .filter(
                       (field) => !model.person.sensitiveFields.includes(field),

@@ -91,7 +91,7 @@ export function RolesPage() {
     <Container maxWidth="lg" sx={{ py: 5 }}>
       <Stack spacing={3}>
         <div>
-          <Typography component="h1" variant="h4" fontWeight={700}>
+          <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
             كتالوج الأدوار
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
@@ -110,7 +110,7 @@ export function RolesPage() {
         ) : null}
 
         {!model && !error ? (
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
             <CircularProgress size={24} />
             <Typography>جارٍ تحميل كتالوج الأدوار...</Typography>
           </Stack>
