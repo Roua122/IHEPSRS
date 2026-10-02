@@ -1,37 +1,29 @@
-# TASK-IAM-001 — User/account model
+# TASK-IAM-002 — Role catalogue
 
 Owner: رؤى محمد  
 Implementation: IMPLEMENT  
 Prototype Priority: MUST
 
-هذه الحزمة مبنية فوق `main` بعد دمج FND-005.
+هذه الحزمة مبنية فوق `main` بعد دمج TASK-IAM-001 (PR #7).
 
-## حدود المهمة
+## لماذا تغير التنفيذ عن التخمين الأولي؟
 
-تنفذ هذه الحزمة **نموذج Person/UserAccount ودورة حياة الحساب الأساسية** فقط.
+الفحص المباشر للـAnalysis Baseline Section 4.3 وجد كتالوج أدوار صريحًا يحتوي
+`CGA, IRS, UA, PGA, PGO, RA, RO, DS, IO, SA, RC`.
 
-لا تنفذ هنا:
-- Role catalogue الكامل — `TASK-IAM-002`
-- Scope-aware authorization — `TASK-IAM-003`
-- RoleDelegation — `TASK-IAM-004`
-- Login/JWT/Logout/MFA/Session security — `TASK-IAM-005`
-
-لهذا السبب لا تنشر IAM-001 أي HTTP write endpoint حساس قبل وجود Authorization/Authentication.
-الواجهة المضافة هي **Model Preview** فقط ولا تعرض بيانات مستخدمين حقيقية.
+كما توجد ثلاثة صفوف Actor/Role في نفس الجدول بلا `roleCode` صريح. الحزمة لا تخترع رموزًا لها.
 
 ## Branch
 
 ```powershell
 git checkout main
 git pull origin main
-git checkout -b feature/TASK-IAM-001-user-account-model
+git checkout -b feature/TASK-IAM-002-role-catalogue
 ```
-
-إذا كنتِ أنشأتِ مسبقًا `feature/TASK-IAM-001` فاستخدميه بدل إنشاء فرع جديد.
 
 ## التطبيق
 
-انسخي محتويات هذه الحزمة فوق جذر المشروع ثم:
+انسخي محتويات الحزمة فوق جذر المشروع ثم:
 
 ```powershell
 pnpm install
@@ -40,6 +32,7 @@ pnpm format:check
 pnpm typecheck
 pnpm build
 pnpm --filter @ihepsrs/api iam001:check
+pnpm --filter @ihepsrs/api iam002:check
 ```
 
 ## التشغيل المرئي
@@ -59,22 +52,29 @@ pnpm --filter @ihepsrs/web dev
 ثم افتحي:
 
 ```text
-http://localhost:5173/settings/users
+http://localhost:5173/settings/roles
 ```
 
-المفروض تظهر شاشة "نموذج حساب المستخدم" وتقرأ الـcanonical model من:
+والـAPI المرجعي:
 
 ```text
-GET http://localhost:3000/api/identity/account-model
+GET http://localhost:3000/api/identity/role-catalogue
 ```
+
+## حدود المهمة
+
+لا تنفذ IAM-002 الآن:
+
+- قرار authorization الفعلي حسب resource/action/institution/data scope — IAM-003.
+- RoleDelegation lifecycle/enforcement — IAM-004.
+- Login/JWT/session/MFA — IAM-005.
+- RoleAssignment write endpoint أو إدارة أدوار فعلية قبل مسار authz/authn.
 
 ## Git
 
 ```powershell
 git status
 git add .
-git commit -m "TASK-IAM-001: implement user account domain model"
-git push -u origin feature/TASK-IAM-001-user-account-model
+git commit -m "TASK-IAM-002: implement role catalogue foundation"
+git push -u origin feature/TASK-IAM-002-role-catalogue
 ```
-
-أو استخدمي اسم الفرع الحالي إن كان `feature/TASK-IAM-001`.

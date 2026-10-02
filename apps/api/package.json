@@ -1,6 +1,6 @@
 {
   "name": "@ihepsrs/api",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
@@ -11,7 +11,8 @@
     "error-model:check": "node scripts/check-error-model.cjs",
     "observability:check": "node scripts/check-observability.cjs",
     "iam001:check": "pnpm build && node scripts/check-iam001.cjs",
-    "test": "pnpm iam001:check"
+    "test": "pnpm iam001:check && pnpm iam002:check",
+    "iam002:check": "pnpm build && node scripts/check-iam002.cjs"
   },
   "dependencies": {
     "@ihepsrs/contracts": "workspace:*",

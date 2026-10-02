@@ -36,5 +36,8 @@ jobs:
       - name: IAM-001 model tests
         run: pnpm --filter @ihepsrs/api iam001:check
 
+      - name: IAM-002 role catalogue tests
+        run: pnpm --filter @ihepsrs/api iam002:check
+
       - name: Runtime smoke tests
         run: pnpm test:smoke
