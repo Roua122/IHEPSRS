@@ -6,6 +6,7 @@ export interface AuthorizationRoleAssignment {
   institutionId: string | null;
   validFrom: string;
   validTo: string | null;
+  delegationId?: string;
 }
 
 export interface DataScopeTarget {
@@ -67,5 +68,6 @@ export interface AuthorizationDecision {
   allowed: boolean;
   policyId: string;
   matchedRoleCode?: RoleCode;
+  delegationId?: string;
   reason?: AuthorizationDenyReason;
 }

@@ -42,5 +42,8 @@ jobs:
       - name: IAM-003 scope authorization tests
         run: pnpm --filter @ihepsrs/api iam003:check
 
+      - name: IAM-004 delegation model tests
+        run: pnpm --filter @ihepsrs/api iam004:check
+
       - name: Runtime smoke tests
         run: pnpm test:smoke
