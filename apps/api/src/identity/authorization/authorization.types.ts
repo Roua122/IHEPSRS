@@ -41,6 +41,7 @@ export interface AuthorizationPolicy {
   institutionScope: InstitutionScopeRequirement;
   dataScope: DataScopeRequirement;
   recordState: RecordStateRequirement;
+  requiresReauthentication?: boolean;
 }
 
 export interface AuthorizationRequestContext {

@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { Link, Route, Routes } from "react-router-dom";
 
+import { LoginPage } from "./pages/LoginPage";
 import { RolesPage } from "./pages/RolesPage";
 import { UsersPage } from "./pages/UsersPage";
 
@@ -30,7 +31,10 @@ function HomePage() {
 
         <Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <Button component={Link} to="/settings/users" variant="contained">
+            <Button component={Link} to="/login" variant="contained">
+              تسجيل الدخول
+            </Button>
+            <Button component={Link} to="/settings/users" variant="outlined">
               عرض نموذج حساب المستخدم
             </Button>
             <Button component={Link} to="/settings/roles" variant="outlined">
@@ -53,6 +57,9 @@ export function App() {
           <Button component={Link} to="/" color="inherit">
             الرئيسية
           </Button>
+          <Button component={Link} to="/login" color="inherit">
+            الدخول
+          </Button>
           <Button component={Link} to="/settings/users" color="inherit">
             الحسابات
           </Button>
@@ -64,6 +71,7 @@ export function App() {
 
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/settings/users" element={<UsersPage />} />
         <Route path="/settings/roles" element={<RolesPage />} />
       </Routes>

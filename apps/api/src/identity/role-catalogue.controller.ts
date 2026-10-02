@@ -5,6 +5,9 @@ import {
   UNCODED_ROLE_CATALOGUE_ROWS,
 } from "./domain/role-catalogue";
 
+import { PublicRoute } from "./authentication/route-access.decorator";
+
+@PublicRoute()
 @Controller("identity")
 export class RoleCatalogueController {
   @Get("role-catalogue")
