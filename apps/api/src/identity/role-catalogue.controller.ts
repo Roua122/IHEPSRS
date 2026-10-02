@@ -29,7 +29,7 @@ export class RoleCatalogueController {
       },
       boundaries: {
         publishesRoleAssignmentWrites: false,
-        permissionDecisionEngineImplemented: false,
+        permissionDecisionEngineImplemented: true,
         scopeAuthorizationTask: "TASK-IAM-003",
         delegationTask: "TASK-IAM-004",
         authenticationSessionTask: "TASK-IAM-005",
