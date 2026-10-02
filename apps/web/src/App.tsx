@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { Link, Route, Routes } from "react-router-dom";
 
+import { RolesPage } from "./pages/RolesPage";
 import { UsersPage } from "./pages/UsersPage";
 
 function HomePage() {
@@ -28,9 +29,14 @@ function HomePage() {
         </Typography>
 
         <Box>
-          <Button component={Link} to="/settings/users" variant="contained">
-            عرض نموذج حساب المستخدم
-          </Button>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <Button component={Link} to="/settings/users" variant="contained">
+              عرض نموذج حساب المستخدم
+            </Button>
+            <Button component={Link} to="/settings/roles" variant="outlined">
+              عرض كتالوج الأدوار
+            </Button>
+          </Stack>
         </Box>
       </Stack>
     </Container>
@@ -42,9 +48,7 @@ export function App() {
     <>
       <AppBar position="static" color="default" elevation={1}>
         <Toolbar>
-          <Typography sx={{ flexGrow: 1 }} fontWeight={700}>
-            IHEPSRS
-          </Typography>
+          <Typography sx={{ flexGrow: 1, fontWeight: 700 }}>IHEPSRS</Typography>
 
           <Button component={Link} to="/" color="inherit">
             الرئيسية
@@ -52,12 +56,16 @@ export function App() {
           <Button component={Link} to="/settings/users" color="inherit">
             الحسابات
           </Button>
+          <Button component={Link} to="/settings/roles" color="inherit">
+            الأدوار
+          </Button>
         </Toolbar>
       </AppBar>
 
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/settings/users" element={<UsersPage />} />
+        <Route path="/settings/roles" element={<RolesPage />} />
       </Routes>
     </>
   );
