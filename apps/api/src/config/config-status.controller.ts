@@ -3,6 +3,9 @@ import { ConfigService } from "@nestjs/config";
 
 import { BusinessPolicyService } from "./business-policy.service";
 
+import { PublicRoute } from "../identity/authentication/route-access.decorator";
+
+@PublicRoute()
 @Controller("config")
 export class ConfigStatusController {
   constructor(

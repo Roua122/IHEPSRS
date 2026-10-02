@@ -26,6 +26,10 @@ function asNonEmptyString(
   return resolved;
 }
 
+function optionalString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function asPort(value: unknown, fallback: number, name: string): number {
   const raw =
     typeof value === "string" && value.trim() ? value : String(fallback);
@@ -88,5 +92,23 @@ export function validateEnvironment(
     INTEGRATION_CONTRACT_VERSION: validated.integrationContractVersion,
     POLICY_CONFIG_PATH: validated.policyConfigPath,
     DATABASE_URL: validated.databaseUrl,
+    PROTOTYPE_LOCAL_AUTH_ENABLED: optionalString(
+      input.PROTOTYPE_LOCAL_AUTH_ENABLED,
+    ),
+    TRUSTED_SSO_AVAILABLE: optionalString(input.TRUSTED_SSO_AVAILABLE),
+    PROTOTYPE_AUTH_USERNAME: optionalString(input.PROTOTYPE_AUTH_USERNAME),
+    PROTOTYPE_AUTH_PASSWORD: optionalString(input.PROTOTYPE_AUTH_PASSWORD),
+    PROTOTYPE_AUTH_TOTP_SECRET: optionalString(
+      input.PROTOTYPE_AUTH_TOTP_SECRET,
+    ),
+    PROTOTYPE_AUTH_USER_ID: optionalString(input.PROTOTYPE_AUTH_USER_ID),
+    PROTOTYPE_AUTH_PERSON_ID: optionalString(input.PROTOTYPE_AUTH_PERSON_ID),
+    PROTOTYPE_AUTH_ROLE_CODE: optionalString(input.PROTOTYPE_AUTH_ROLE_CODE),
+    PROTOTYPE_AUTH_INSTITUTION_ID: optionalString(
+      input.PROTOTYPE_AUTH_INSTITUTION_ID,
+    ),
+    PROTOTYPE_AUTH_SESSION_PROFILE: optionalString(
+      input.PROTOTYPE_AUTH_SESSION_PROFILE,
+    ),
   };
 }

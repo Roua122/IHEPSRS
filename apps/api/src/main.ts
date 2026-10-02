@@ -28,7 +28,8 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle("IHEPSRS API")
     .setDescription("Academic Prototype API")
-    .setVersion(config.get<string>("APP_VERSION") ?? "0.1.4")
+    .setVersion(config.get<string>("APP_VERSION") ?? "0.5.0")
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

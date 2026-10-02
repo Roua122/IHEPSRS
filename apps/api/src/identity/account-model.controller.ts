@@ -2,6 +2,9 @@ import { Controller, Get } from "@nestjs/common";
 
 import { USER_STATUSES, USER_STATUS_TRANSITIONS } from "./domain/user-status";
 
+import { PublicRoute } from "./authentication/route-access.decorator";
+
+@PublicRoute()
 @Controller("identity")
 export class AccountModelController {
   @Get("account-model")
