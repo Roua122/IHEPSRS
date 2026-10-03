@@ -22,7 +22,10 @@ export class PublicationsController {
   }
 
   @Patch(":id/status")
-  updateStatus(@Param("id") id: string, @Body() dto: { status: PublicationStatus }) {
+  updateStatus(
+    @Param("id") id: string,
+    @Body() dto: { status: PublicationStatus },
+  ) {
     return this.publicationService.updatePublicationStatus(id, dto.status);
   }
 

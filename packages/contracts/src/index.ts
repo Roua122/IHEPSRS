@@ -1,8 +1,5 @@
 export type IntegrationMessageType =
-  | "StudentUpsert"
-  | "ResearcherUpsert"
-  | "ProgramUpsert"
-  | "PublicationUpsert";
+  "StudentUpsert" | "ResearcherUpsert" | "ProgramUpsert" | "PublicationUpsert";
 
 export interface IntegrationEnvelope<TPayload = unknown> {
   messageId: string;
@@ -222,4 +219,3 @@ export interface CreatePublicationDto {
     affiliationText?: string;
   }>;
 }
-

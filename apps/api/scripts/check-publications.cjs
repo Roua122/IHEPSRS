@@ -1,4 +1,6 @@
-const { PublicationService } = require("../dist/publications/domain/publication.service.js");
+const {
+  PublicationService,
+} = require("../dist/publications/domain/publication.service.js");
 
 function assert(condition, testId, message) {
   if (!condition) {
@@ -18,7 +20,9 @@ function expectThrow(fn, testId, message) {
 }
 
 function main() {
-  console.log("=== Checking Phase 07 Publications Tasks (TASK-PUB-001, TASK-PUB-002, TASK-PUB-003) ===");
+  console.log(
+    "=== Checking Phase 07 Publications Tasks (TASK-PUB-001, TASK-PUB-002, TASK-PUB-003) ===",
+  );
 
   const service = new PublicationService();
 
@@ -81,7 +85,8 @@ function main() {
 
   // Register valid publication
   const res1 = service.registerPublication({
-    title: "Quantum-Resistant Identity Verification Protocols in Higher Education",
+    title:
+      "Quantum-Resistant Identity Verification Protocols in Higher Education",
     type: "Article",
     doi: "10.1016/j.ihepsrs.2026.09.999",
     publicationDate: "2026-09-01",
@@ -110,7 +115,8 @@ function main() {
   );
 
   assert(
-    res1.publication.authors[0].authorOrder === 1 && res1.publication.authors[1].authorOrder === 2,
+    res1.publication.authors[0].authorOrder === 1 &&
+      res1.publication.authors[1].authorOrder === 2,
     "TC-BR-048",
     "BR-048: Publication author ordering is preserved sequentially starting from 1",
   );
@@ -154,7 +160,8 @@ function main() {
   });
 
   assert(
-    linkedPub.authors[1].researcherId === "RES-102" && linkedPub.authors[1].linkedAt !== undefined,
+    linkedPub.authors[1].researcherId === "RES-102" &&
+      linkedPub.authors[1].linkedAt !== undefined,
     "TC-BR-048",
     "BR-048: External author linked to Researcher profile without modifying author order",
   );

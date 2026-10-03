@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from "@nestjs/common";
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from "@nestjs/common";
 import {
   ResearchProposalRecord,
   ProposalReviewRecord,
@@ -25,8 +30,10 @@ export class ProposalService {
     const prop1: ResearchProposalRecord = {
       proposalId: "PROP-101",
       principalResearcherId: "RES-101",
-      title: "AI-Driven Framework for High-Performance Scientific Data Integration",
-      abstract: "This proposal explores distributed data synchronization across academic institutions using event-driven architectures.",
+      title:
+        "AI-Driven Framework for High-Performance Scientific Data Integration",
+      abstract:
+        "This proposal explores distributed data synchronization across academic institutions using event-driven architectures.",
       initialBudget: 150000,
       status: "Submitted",
       submittedAt: "2026-09-15T10:00:00Z",
@@ -35,10 +42,19 @@ export class ProposalService {
     this.reviews.set(prop1.proposalId, []);
   }
 
-  createProposal(dto: { principalResearcherId: string; title: string; abstract: string; initialBudget?: number }): ResearchProposalRecord {
-    const researcher = this.identityService.getResearcher(dto.principalResearcherId);
+  createProposal(dto: {
+    principalResearcherId: string;
+    title: string;
+    abstract: string;
+    initialBudget?: number;
+  }): ResearchProposalRecord {
+    const researcher = this.identityService.getResearcher(
+      dto.principalResearcherId,
+    );
     if (!researcher) {
-      throw new NotFoundException(`Principal Researcher ${dto.principalResearcherId} not found`);
+      throw new NotFoundException(
+        `Principal Researcher ${dto.principalResearcherId} not found`,
+      );
     }
 
     const proposalId = `PROP-${Date.now()}`;
@@ -71,8 +87,13 @@ export class ProposalService {
       throw new NotFoundException(`Proposal ${proposalId} not found`);
     }
 
-    if (proposal.status !== "Draft" && proposal.status !== "RevisionRequested") {
-      throw new BadRequestException(`Cannot submit proposal in status ${proposal.status}`);
+    if (
+      proposal.status !== "Draft" &&
+      proposal.status !== "RevisionRequested"
+    ) {
+      throw new BadRequestException(
+        `Cannot submit proposal in status ${proposal.status}`,
+      );
     }
 
     const updated: ResearchProposalRecord = {
@@ -105,10 +126,15 @@ export class ProposalService {
       throw new NotFoundException(`Reviewer ${dto.reviewerId} not found`);
     }
 
-    const piResearcher = this.identityService.getResearcher(proposal.principalResearcherId);
+    const piResearcher = this.identityService.getResearcher(
+      proposal.principalResearcherId,
+    );
 
     // COI Rule 1 (BR-021 & BR-061): Proposer cannot review their own proposal (Self-Review)
-    if (dto.reviewerId === proposal.principalResearcherId || (piResearcher && reviewer.personId === piResearcher.personId)) {
+    if (
+      dto.reviewerId === proposal.principalResearcherId ||
+      (piResearcher && reviewer.personId === piResearcher.personId)
+    ) {
       writeStructuredLog({
         level: "warn",
         event: "research.coi.blocked",
@@ -117,7 +143,9 @@ export class ProposalService {
         reviewerId: dto.reviewerId,
         rule: "BR-021/BR-061: Self-Review",
       });
-      throw new ForbiddenException("BR-021 / BR-061: Proposer cannot be assigned as reviewer to their own proposal (Conflict of Interest)");
+      throw new ForbiddenException(
+        "BR-021 / BR-061: Proposer cannot be assigned as reviewer to their own proposal (Conflict of Interest)",
+      );
     }
 
     // COI Rule 2 (BR-061): Manual conflict disclosure or same department / direct relation
@@ -127,7 +155,12 @@ export class ProposalService {
     if (dto.hasDeclaredConflict) {
       isConflict = true;
       conflictReason = "Manual Conflict Disclosure declared";
-    } else if (piResearcher && piResearcher.institutionId === reviewer.institutionId && piResearcher.department && piResearcher.department === reviewer.department) {
+    } else if (
+      piResearcher &&
+      piResearcher.institutionId === reviewer.institutionId &&
+      piResearcher.department &&
+      piResearcher.department === reviewer.department
+    ) {
       isConflict = true;
       conflictReason = "BR-061: Same department membership conflict";
     }
@@ -165,7 +198,12 @@ export class ProposalService {
   }
 
   // --- BR-022: Prevent Conflicted Reviewer from Submitting Review ---
-  submitReview(dto: { reviewId: string; score: number; recommendation: "Approve" | "Reject" | "Revision"; comments?: string }): ProposalReviewRecord {
+  submitReview(dto: {
+    reviewId: string;
+    score: number;
+    recommendation: "Approve" | "Reject" | "Revision";
+    comments?: string;
+  }): ProposalReviewRecord {
     let targetProposalId: string | undefined;
     let targetReviewIndex = -1;
     let targetReview: ProposalReviewRecord | undefined;
@@ -186,7 +224,9 @@ export class ProposalService {
 
     // BR-022: Conflicted reviewer is blocked from proceeding with evaluation
     if (targetReview.conflictStatus === "Conflict") {
-      throw new ForbiddenException(`BR-022: Reviewer is conflicted (${targetReview.conflictReason}) and blocked from submitting evaluation`);
+      throw new ForbiddenException(
+        `BR-022: Reviewer is conflicted (${targetReview.conflictReason}) and blocked from submitting evaluation`,
+      );
     }
 
     const updatedReview: ProposalReviewRecord = {
@@ -212,7 +252,12 @@ export class ProposalService {
   }
 
   // --- BR-021 & BR-049: Proposal Decision & Auto Project Creation ---
-  issueDecision(dto: { proposalId: string; decision: "Approved" | "Rejected"; decisionByResearcherId: string; reason?: string }): ResearchProposalRecord {
+  issueDecision(dto: {
+    proposalId: string;
+    decision: "Approved" | "Rejected";
+    decisionByResearcherId: string;
+    reason?: string;
+  }): ResearchProposalRecord {
     const proposal = this.proposals.get(dto.proposalId);
     if (!proposal) {
       throw new NotFoundException(`Proposal ${dto.proposalId} not found`);
@@ -220,22 +265,29 @@ export class ProposalService {
 
     // BR-021: Decision cannot be issued by the proposal's PI
     if (proposal.principalResearcherId === dto.decisionByResearcherId) {
-      throw new ForbiddenException("BR-021: Proposal PI cannot issue approval decision on their own proposal");
+      throw new ForbiddenException(
+        "BR-021: Proposal PI cannot issue approval decision on their own proposal",
+      );
     }
 
     let createdProjectId: string | undefined;
 
     // BR-049: Approved proposal automatically creates 1 default Research Project
     if (dto.decision === "Approved") {
-      const piResearcher = this.identityService.getResearcher(proposal.principalResearcherId);
-      const institutionId = piResearcher ? piResearcher.institutionId : "INST-001";
+      const piResearcher = this.identityService.getResearcher(
+        proposal.principalResearcherId,
+      );
+      const institutionId = piResearcher
+        ? piResearcher.institutionId
+        : "INST-001";
 
-      const createdProject = this.projectService.createProjectFromApprovedProposal({
-        proposalId: proposal.proposalId,
-        leaderId: proposal.principalResearcherId,
-        institutionId,
-        title: proposal.title,
-      });
+      const createdProject =
+        this.projectService.createProjectFromApprovedProposal({
+          proposalId: proposal.proposalId,
+          leaderId: proposal.principalResearcherId,
+          institutionId,
+          title: proposal.title,
+        });
 
       createdProjectId = createdProject.projectId;
     }

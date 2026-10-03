@@ -17,7 +17,15 @@ export class ProposalsController {
   }
 
   @Post()
-  createProposal(@Body() dto: { principalResearcherId: string; title: string; abstract: string; initialBudget?: number }) {
+  createProposal(
+    @Body()
+    dto: {
+      principalResearcherId: string;
+      title: string;
+      abstract: string;
+      initialBudget?: number;
+    },
+  ) {
     return this.proposalService.createProposal(dto);
   }
 
@@ -32,14 +40,22 @@ export class ProposalsController {
   }
 
   @Post(":id/reviewers")
-  assignReviewer(@Param("id") id: string, @Body() dto: Omit<AssignReviewerDto, "proposalId">) {
+  assignReviewer(
+    @Param("id") id: string,
+    @Body() dto: Omit<AssignReviewerDto, "proposalId">,
+  ) {
     return this.proposalService.assignReviewer({ ...dto, proposalId: id });
   }
 
   @Post("reviews/:reviewId/score")
   submitReview(
     @Param("reviewId") reviewId: string,
-    @Body() dto: { score: number; recommendation: "Approve" | "Reject" | "Revision"; comments?: string },
+    @Body()
+    dto: {
+      score: number;
+      recommendation: "Approve" | "Reject" | "Revision";
+      comments?: string;
+    },
   ) {
     return this.proposalService.submitReview({ ...dto, reviewId });
   }
@@ -47,7 +63,12 @@ export class ProposalsController {
   @Post(":id/decision")
   issueDecision(
     @Param("id") id: string,
-    @Body() dto: { decision: "Approved" | "Rejected"; decisionByResearcherId: string; reason?: string },
+    @Body()
+    dto: {
+      decision: "Approved" | "Rejected";
+      decisionByResearcherId: string;
+      reason?: string;
+    },
   ) {
     return this.proposalService.issueDecision({ ...dto, proposalId: id });
   }

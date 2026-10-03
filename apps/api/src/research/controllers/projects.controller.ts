@@ -33,7 +33,10 @@ export class ProjectsController {
   }
 
   @Patch(":id/status")
-  updateProjectStatus(@Param("id") id: string, @Body() dto: { status: ResearchProjectStatus }) {
+  updateProjectStatus(
+    @Param("id") id: string,
+    @Body() dto: { status: ResearchProjectStatus },
+  ) {
     return this.projectService.updateProjectStatus(id, dto.status);
   }
 

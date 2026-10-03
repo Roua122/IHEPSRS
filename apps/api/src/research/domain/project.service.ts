@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   ResearchProjectRecord,
   AmendmentRequestRecord,
@@ -86,15 +90,21 @@ export class ProjectService {
   }): ResearchProjectRecord {
     // BR-020: Project must have at least 1 Leader and valid date range
     if (!dto.leaderId?.trim()) {
-      throw new BadRequestException("BR-020: Project must have at least one Principal Investigator (Leader)");
+      throw new BadRequestException(
+        "BR-020: Project must have at least one Principal Investigator (Leader)",
+      );
     }
     if (dto.endDate && dto.endDate < dto.startDate) {
-      throw new BadRequestException("BR-020: Project endDate must be on or after startDate");
+      throw new BadRequestException(
+        "BR-020: Project endDate must be on or after startDate",
+      );
     }
 
     // BR-049: Direct creation without proposal requires admin reason & decision
     if (!dto.adminReason?.trim() || !dto.adminDecisionRef?.trim()) {
-      throw new BadRequestException("BR-049: Creating a project without an approved proposal requires authorized admin reason and decision reference");
+      throw new BadRequestException(
+        "BR-049: Creating a project without an approved proposal requires authorized admin reason and decision reference",
+      );
     }
 
     const projectId = `PROJ-${Date.now()}`;
@@ -139,7 +149,9 @@ export class ProjectService {
     }
 
     if (project.status !== "Active" && project.status !== "OnHold") {
-      throw new BadRequestException(`Cannot request amendment for project in status ${project.status}`);
+      throw new BadRequestException(
+        `Cannot request amendment for project in status ${project.status}`,
+      );
     }
 
     const amendmentId = `AMD-${Date.now()}`;
@@ -170,7 +182,11 @@ export class ProjectService {
     return amendment;
   }
 
-  decideAmendment(dto: { amendmentId: string; decision: "Approved" | "Rejected"; decidedBy: string }): AmendmentRequestRecord {
+  decideAmendment(dto: {
+    amendmentId: string;
+    decision: "Approved" | "Rejected";
+    decidedBy: string;
+  }): AmendmentRequestRecord {
     let targetProjectId: string | undefined;
     let targetIndex = -1;
     let targetAmendment: AmendmentRequestRecord | undefined;
@@ -186,7 +202,9 @@ export class ProjectService {
     }
 
     if (!targetAmendment || !targetProjectId) {
-      throw new NotFoundException(`Amendment request ${dto.amendmentId} not found`);
+      throw new NotFoundException(
+        `Amendment request ${dto.amendmentId} not found`,
+      );
     }
 
     const project = this.projects.get(targetProjectId)!;
@@ -199,12 +217,18 @@ export class ProjectService {
 
     // Apply changes if Approved (BR-050 preserves history by recording amendment record)
     if (dto.decision === "Approved") {
-      if (targetAmendment.type === "LeaderChange" && targetAmendment.newLeaderId) {
+      if (
+        targetAmendment.type === "LeaderChange" &&
+        targetAmendment.newLeaderId
+      ) {
         this.projects.set(targetProjectId, {
           ...project,
           leaderId: targetAmendment.newLeaderId,
         });
-      } else if (targetAmendment.type === "Extension" && targetAmendment.newEndDate) {
+      } else if (
+        targetAmendment.type === "Extension" &&
+        targetAmendment.newEndDate
+      ) {
         this.projects.set(targetProjectId, {
           ...project,
           endDate: targetAmendment.newEndDate,
@@ -265,7 +289,10 @@ export class ProjectService {
   }
 
   // --- UC-11 & State Transitions: Project Completion Verification ---
-  updateProjectStatus(projectId: string, newStatus: ResearchProjectStatus): ResearchProjectRecord {
+  updateProjectStatus(
+    projectId: string,
+    newStatus: ResearchProjectStatus,
+  ): ResearchProjectRecord {
     const project = this.projects.get(projectId);
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found`);
@@ -274,10 +301,14 @@ export class ProjectService {
     // UC-11: Cannot mark project as Completed unless mandatory required fields and at least 1 accepted output are present
     if (newStatus === "Completed") {
       const projectOutputs = this.outputs.get(projectId) || [];
-      const hasAcceptedOutputs = projectOutputs.some((o) => o.status === "Accepted");
+      const hasAcceptedOutputs = projectOutputs.some(
+        (o) => o.status === "Accepted",
+      );
 
       if (!hasAcceptedOutputs) {
-        throw new BadRequestException("UC-11: Cannot complete project without at least one registered and accepted research output");
+        throw new BadRequestException(
+          "UC-11: Cannot complete project without at least one registered and accepted research output",
+        );
       }
     }
 

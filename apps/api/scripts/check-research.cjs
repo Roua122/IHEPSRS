@@ -1,6 +1,12 @@
-const { PersonIdentityService } = require("../dist/research/domain/person-identity.service.js");
-const { ProposalService } = require("../dist/research/domain/proposal.service.js");
-const { ProjectService } = require("../dist/research/domain/project.service.js");
+const {
+  PersonIdentityService,
+} = require("../dist/research/domain/person-identity.service.js");
+const {
+  ProposalService,
+} = require("../dist/research/domain/proposal.service.js");
+const {
+  ProjectService,
+} = require("../dist/research/domain/project.service.js");
 
 function assert(condition, testId, message) {
   if (!condition) {
@@ -20,7 +26,9 @@ function expectThrow(fn, testId, message) {
 }
 
 function main() {
-  console.log("=== Checking Phase 06 Research Tasks (TASK-RS-001, TASK-RS-002, TASK-RS-003, TASK-RS-006) ===");
+  console.log(
+    "=== Checking Phase 06 Research Tasks (TASK-RS-001, TASK-RS-002, TASK-RS-003, TASK-RS-006) ===",
+  );
 
   // -------------------------------------------------------------
   // 1. TASK-RS-001: Researcher Profile & Identity Merge (FR-021, FR-042, BR-055, NFR-025)
@@ -29,7 +37,8 @@ function main() {
 
   const researcher = identityService.getResearcher("RES-101");
   assert(
-    researcher.personId === "P-101" && researcher.orcid === "0000-0002-1825-0097",
+    researcher.personId === "P-101" &&
+      researcher.orcid === "0000-0002-1825-0097",
     "TC-FR-021",
     "Researcher profile manages academic title, affiliation and external identifiers",
   );
@@ -50,7 +59,8 @@ function main() {
   });
 
   assert(
-    mergeResult.mergedTargetPersonId === "P-101" && mergeResult.remappedRecordsCount > 0,
+    mergeResult.mergedTargetPersonId === "P-101" &&
+      mergeResult.remappedRecordsCount > 0,
     "TC-FR-042",
     "Data Steward successfully merges duplicate person identity and remaps records",
   );
@@ -71,7 +81,8 @@ function main() {
   const proposal = proposalService.createProposal({
     principalResearcherId: "RES-101",
     title: "Distributed Quantum Key Distribution Protocol",
-    abstract: "Quantum cryptography application for university network integration",
+    abstract:
+      "Quantum cryptography application for university network integration",
     initialBudget: 200000,
   });
 
@@ -142,7 +153,8 @@ function main() {
   });
 
   assert(
-    approvedProposal.status === "Approved" && approvedProposal.createdProjectId !== undefined,
+    approvedProposal.status === "Approved" &&
+      approvedProposal.createdProjectId !== undefined,
     "TC-BR-049",
     "BR-049: Approved research proposal automatically creates default Research Project",
   );
@@ -150,7 +162,9 @@ function main() {
   // -------------------------------------------------------------
   // 3. TASK-RS-003 & TASK-RS-006: Project Lifecycle & Outputs (FR-024, FR-027, BR-020, BR-050, UC-11)
   // -------------------------------------------------------------
-  const createdProject = projectService.getProject(approvedProposal.createdProjectId);
+  const createdProject = projectService.getProject(
+    approvedProposal.createdProjectId,
+  );
   assert(
     createdProject.status === "Active" && createdProject.leaderId === "RES-101",
     "TC-FR-024",
@@ -187,7 +201,8 @@ function main() {
 
   // UC-11: Cannot mark completed without accepted outputs
   expectThrow(
-    () => projectService.updateProjectStatus(createdProject.projectId, "Completed"),
+    () =>
+      projectService.updateProjectStatus(createdProject.projectId, "Completed"),
     "TC-UC-11",
     "UC-11: Cannot set project status to Completed without registered research outputs",
   );
@@ -198,7 +213,10 @@ function main() {
     title: "Final Quantum Protocol Specification Document",
   });
 
-  const completedProj = projectService.updateProjectStatus(createdProject.projectId, "Completed");
+  const completedProj = projectService.updateProjectStatus(
+    createdProject.projectId,
+    "Completed",
+  );
   assert(
     completedProj.status === "Completed",
     "TC-FR-027",

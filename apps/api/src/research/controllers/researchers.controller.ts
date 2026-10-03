@@ -32,7 +32,11 @@ export class ResearchersController {
     @Query("email") email?: string,
     @Query("birthDate") birthDate?: string,
   ) {
-    return this.identityService.findMatchingPersons({ nationalIdentifier, email, birthDate });
+    return this.identityService.findMatchingPersons({
+      nationalIdentifier,
+      email,
+      birthDate,
+    });
   }
 
   @Get("persons/:id")

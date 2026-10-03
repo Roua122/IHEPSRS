@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   PersonRecord,
   ResearcherProfile,
@@ -115,21 +119,32 @@ export class PersonIdentityService {
   }
 
   // --- FR-021: Researcher Profile Management ---
-  createOrUpdateResearcher(profile: Partial<ResearcherProfile> & { personId: string; institutionId: string }): ResearcherProfile {
+  createOrUpdateResearcher(
+    profile: Partial<ResearcherProfile> & {
+      personId: string;
+      institutionId: string;
+    },
+  ): ResearcherProfile {
     const person = this.persons.get(profile.personId);
     if (!person) {
-      throw new NotFoundException(`Person with ID ${profile.personId} not found`);
+      throw new NotFoundException(
+        `Person with ID ${profile.personId} not found`,
+      );
     }
 
-    const existing = Array.from(this.researchers.values()).find((r) => r.personId === profile.personId);
-    const researcherId = profile.researcherId || existing?.researcherId || `RES-${Date.now()}`;
+    const existing = Array.from(this.researchers.values()).find(
+      (r) => r.personId === profile.personId,
+    );
+    const researcherId =
+      profile.researcherId || existing?.researcherId || `RES-${Date.now()}`;
 
     const updated: ResearcherProfile = {
       researcherId,
       personId: profile.personId,
       institutionId: profile.institutionId,
       orcid: profile.orcid || existing?.orcid,
-      specializationCode: profile.specializationCode || existing?.specializationCode,
+      specializationCode:
+        profile.specializationCode || existing?.specializationCode,
       academicTitle: profile.academicTitle || existing?.academicTitle,
       department: profile.department || existing?.department,
       scopusId: profile.scopusId || existing?.scopusId,
@@ -158,7 +173,9 @@ export class PersonIdentityService {
   }
 
   getResearcherByPersonId(personId: string): ResearcherProfile | undefined {
-    return Array.from(this.researchers.values()).find((r) => r.personId === personId);
+    return Array.from(this.researchers.values()).find(
+      (r) => r.personId === personId,
+    );
   }
 
   getAllResearchers(): ResearcherProfile[] {
@@ -174,14 +191,19 @@ export class PersonIdentityService {
   }
 
   getAllPersons(): PersonRecord[] {
-    return Array.from(this.persons.values()).map((p) => this.maskSensitiveFields(p));
+    return Array.from(this.persons.values()).map((p) =>
+      this.maskSensitiveFields(p),
+    );
   }
 
   // --- NFR-025: Data Minimization & Sensitive Data Masking ---
   private maskSensitiveFields(person: PersonRecord): PersonRecord {
     if (!person.nationalIdentifier) return person;
     const national = person.nationalIdentifier;
-    const masked = national.length > 6 ? `${national.slice(0, 3)}***${national.slice(-3)}` : "***";
+    const masked =
+      national.length > 6
+        ? `${national.slice(0, 3)}***${national.slice(-3)}`
+        : "***";
     return {
       ...person,
       nationalIdentifier: masked,
@@ -189,12 +211,21 @@ export class PersonIdentityService {
   }
 
   // --- FR-042 & BR-055: Identity Resolution & Duplicate Person Merge ---
-  findMatchingPersons(query: { nationalIdentifier?: string; email?: string; birthDate?: string }): PersonRecord[] {
+  findMatchingPersons(query: {
+    nationalIdentifier?: string;
+    email?: string;
+    birthDate?: string;
+  }): PersonRecord[] {
     return Array.from(this.persons.values())
       .filter((p) => p.status === "Active")
       .filter((p) => {
-        if (query.nationalIdentifier && p.nationalIdentifier === query.nationalIdentifier) return true;
-        if (query.email && p.email?.toLowerCase() === query.email.toLowerCase()) return true;
+        if (
+          query.nationalIdentifier &&
+          p.nationalIdentifier === query.nationalIdentifier
+        )
+          return true;
+        if (query.email && p.email?.toLowerCase() === query.email.toLowerCase())
+          return true;
         if (query.birthDate && p.birthDate === query.birthDate) return true;
         return false;
       })
@@ -206,16 +237,22 @@ export class PersonIdentityService {
     const targetPerson = this.persons.get(dto.targetPersonId);
 
     if (!sourcePerson) {
-      throw new NotFoundException(`Source Person ${dto.sourcePersonId} not found`);
+      throw new NotFoundException(
+        `Source Person ${dto.sourcePersonId} not found`,
+      );
     }
     if (!targetPerson) {
-      throw new NotFoundException(`Target Person ${dto.targetPersonId} not found`);
+      throw new NotFoundException(
+        `Target Person ${dto.targetPersonId} not found`,
+      );
     }
     if (sourcePerson.personId === targetPerson.personId) {
       throw new BadRequestException("Cannot merge a person into themselves");
     }
     if (sourcePerson.status === "Archived") {
-      throw new BadRequestException("Source person is already merged or archived");
+      throw new BadRequestException(
+        "Source person is already merged or archived",
+      );
     }
 
     let remappedCount = 0;
