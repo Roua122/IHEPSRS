@@ -1,6 +1,6 @@
 # TASK-PUB-003 — Authors and author ordering
 
-Status: TODO
+Status: DONE
 Implementation: IMPLEMENT
 Prototype Priority: MUST
 Owner: سمية خالد
@@ -39,12 +39,12 @@ Owner: سمية خالد
 - تحقق من `docs/25_prototype_acceptance.md` إذا كانت المهمة `MUST`.
 
 ## Definition of Done
-- [ ] Implemented according to `Implementation` classification.
-- [ ] Source IDs referenced in code/tests/PR where relevant.
-- [ ] Required validation/state rules enforced.
-- [ ] Authorization/scope checked.
-- [ ] Audit/observability handled where required.
-- [ ] Tests pass.
-- [ ] No secrets committed.
-- [ ] Documentation affected by the change updated.
-- [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+- [x] Implemented according to `Implementation` classification.
+- [x] Source IDs referenced in code/tests/PR where relevant.
+- [x] Required validation/state rules enforced.
+- [x] Authorization/scope checked.
+- [x] Audit/observability handled where required.
+- [x] Tests pass.
+- [x] No secrets committed.
+- [x] Documentation affected by the change updated.
+- [x] No new business rule/status/field ownership introduced without CR/ADR as applicable.

@@ -13,9 +13,11 @@
     "iam001:check": "pnpm build && node scripts/check-iam001.cjs",
     "iam002:check": "pnpm build && node scripts/check-iam002.cjs",
     "iam003:check": "pnpm build && node scripts/check-iam003.cjs",
-    "test": "pnpm iam001:check && pnpm iam002:check && pnpm iam003:check && pnpm iam004:check && pnpm iam005:check",
     "iam004:check": "pnpm build && node scripts/check-iam004.cjs",
     "iam005:check": "pnpm build && node scripts/check-iam005.cjs",
+    "research:check": "pnpm build && node scripts/check-research.cjs",
+    "publications:check": "pnpm build && node scripts/check-publications.cjs",
+    "test": "pnpm iam001:check && pnpm iam002:check && pnpm iam003:check && pnpm iam004:check && pnpm iam005:check && pnpm research:check && pnpm publications:check",
     "auth:generate-totp-secret": "node scripts/generate-totp-secret.cjs"
   },
   "dependencies": {
