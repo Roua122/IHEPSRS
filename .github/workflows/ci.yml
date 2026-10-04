@@ -48,5 +48,11 @@ jobs:
       - name: IAM-005 authentication and session tests
         run: pnpm --filter @ihepsrs/api iam005:check
 
+      - name: Research domain checks
+        run: pnpm --filter @ihepsrs/api research:check
+
+      - name: Publications domain checks
+        run: pnpm --filter @ihepsrs/api publications:check
+
       - name: Runtime smoke tests
         run: pnpm test:smoke

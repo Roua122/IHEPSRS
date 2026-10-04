@@ -1,33 +1,39 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  ForbiddenException,
-} from "@nestjs/common";
-import {
-  ResearchProposalRecord,
-  ProposalReviewRecord,
+import { HttpStatus, Injectable } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+
+import type {
   AssignReviewerDto,
-  ResearchProposalStatus,
+  ProposalReviewRecord,
+  ResearchProposalRecord,
 } from "@ihepsrs/contracts";
+
+import { AppException } from "../../common/errors/app-exception";
+import { ErrorCode } from "../../common/errors/error-code";
 import { writeStructuredLog } from "../../common/observability/structured-log";
+import type { AuthorizationPrincipal } from "../../identity/authorization/authorization.types";
+import { ConflictOfInterestService } from "./conflict-of-interest.service";
 import { PersonIdentityService } from "./person-identity.service";
 import { ProjectService } from "./project.service";
+import { ResearchAuditService } from "./research-audit.service";
+import { ResearchAuthorizationService } from "./research-authorization.service";
 
 @Injectable()
 export class ProposalService {
-  private proposals = new Map<string, ResearchProposalRecord>();
-  private reviews = new Map<string, ProposalReviewRecord[]>();
+  private readonly proposals = new Map<string, ResearchProposalRecord>();
+  private readonly reviews = new Map<string, ProposalReviewRecord[]>();
 
   constructor(
     private readonly identityService: PersonIdentityService,
     private readonly projectService: ProjectService,
+    private readonly authorization: ResearchAuthorizationService,
+    private readonly conflicts: ConflictOfInterestService,
+    private readonly audit: ResearchAuditService,
   ) {
     this.seedInitialData();
   }
 
-  private seedInitialData() {
-    const prop1: ResearchProposalRecord = {
+  private seedInitialData(): void {
+    const proposal: ResearchProposalRecord = {
       proposalId: "PROP-101",
       principalResearcherId: "RES-101",
       title:
@@ -38,61 +44,63 @@ export class ProposalService {
       status: "Submitted",
       submittedAt: "2026-09-15T10:00:00Z",
     };
-    this.proposals.set(prop1.proposalId, prop1);
-    this.reviews.set(prop1.proposalId, []);
+    this.proposals.set(proposal.proposalId, proposal);
+    this.reviews.set(proposal.proposalId, []);
   }
 
-  createProposal(dto: {
-    principalResearcherId: string;
-    title: string;
-    abstract: string;
-    initialBudget?: number;
-  }): ResearchProposalRecord {
+  createProposal(
+    dto: {
+      principalResearcherId: string;
+      title: string;
+      abstract: string;
+      initialBudget?: number;
+    },
+    principal: AuthorizationPrincipal,
+  ): ResearchProposalRecord {
     const researcher = this.identityService.getResearcher(
       dto.principalResearcherId,
     );
-    if (!researcher) {
-      throw new NotFoundException(
-        `Principal Researcher ${dto.principalResearcherId} not found`,
-      );
-    }
+    this.authorization.assertResearchOperation(
+      principal,
+      researcher.institutionId,
+    );
+    this.validateProposalContent(dto.title, dto.abstract, dto.initialBudget);
 
-    const proposalId = `PROP-${Date.now()}`;
     const proposal: ResearchProposalRecord = {
-      proposalId,
-      principalResearcherId: dto.principalResearcherId,
-      title: dto.title,
-      abstract: dto.abstract,
+      proposalId: randomUUID(),
+      principalResearcherId: researcher.researcherId,
+      title: dto.title.trim(),
+      abstract: dto.abstract.trim(),
       initialBudget: dto.initialBudget,
       status: "Draft",
     };
-
-    this.proposals.set(proposalId, proposal);
-    this.reviews.set(proposalId, []);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.proposal.created",
-      message: `Proposal ${proposalId} created by researcher ${dto.principalResearcherId}`,
-      proposalId,
-      principalResearcherId: dto.principalResearcherId,
+    this.proposals.set(proposal.proposalId, proposal);
+    this.reviews.set(proposal.proposalId, []);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.created",
+      entityType: "ResearchProposal",
+      entityId: proposal.proposalId,
+      metadata: { sourceId: "FR-022" },
     });
-
-    return proposal;
+    return { ...proposal };
   }
 
-  submitProposal(proposalId: string): ResearchProposalRecord {
-    const proposal = this.proposals.get(proposalId);
-    if (!proposal) {
-      throw new NotFoundException(`Proposal ${proposalId} not found`);
-    }
-
+  submitProposal(
+    proposalId: string,
+    principal: AuthorizationPrincipal,
+  ): ResearchProposalRecord {
+    const proposal = this.requireProposal(proposalId);
+    this.authorization.assertResearchOperation(
+      principal,
+      this.getProposalInstitutionId(proposal),
+    );
     if (
       proposal.status !== "Draft" &&
       proposal.status !== "RevisionRequested"
     ) {
-      throw new BadRequestException(
-        `Cannot submit proposal in status ${proposal.status}`,
+      throw this.validation(
+        `ResearchProposal ${proposalId} cannot be submitted from ${proposal.status}`,
       );
     }
 
@@ -101,231 +109,385 @@ export class ProposalService {
       status: "Submitted",
       submittedAt: new Date().toISOString(),
     };
-
     this.proposals.set(proposalId, updated);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.proposal.submitted",
-      proposalId,
-      status: updated.status,
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.submitted",
+      entityType: "ResearchProposal",
+      entityId: proposalId,
+      metadata: { sourceId: "FR-022" },
     });
-
-    return updated;
+    return { ...updated };
   }
 
-  // --- BR-021, BR-022, BR-061: Conflict of Interest (COI) Check & Reviewer Assignment ---
-  assignReviewer(dto: AssignReviewerDto): ProposalReviewRecord {
-    const proposal = this.proposals.get(dto.proposalId);
-    if (!proposal) {
-      throw new NotFoundException(`Proposal ${dto.proposalId} not found`);
+  screenProposal(
+    proposalId: string,
+    principal: AuthorizationPrincipal,
+  ): ResearchProposalRecord {
+    const proposal = this.requireProposal(proposalId);
+    const institutionId = this.getProposalInstitutionId(proposal);
+    this.authorization.assertResearchOperation(principal, institutionId);
+    if (proposal.status !== "Submitted") {
+      throw this.validation(
+        `ResearchProposal ${proposalId} can enter Screening only from Submitted`,
+      );
     }
+    const updated = { ...proposal, status: "Screening" as const };
+    this.proposals.set(proposalId, updated);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.screening_started",
+      entityType: "ResearchProposal",
+      entityId: proposalId,
+      metadata: { sourceId: "FR-023" },
+    });
+    return { ...updated };
+  }
 
-    const reviewer = this.identityService.getResearcher(dto.reviewerId);
-    if (!reviewer) {
-      throw new NotFoundException(`Reviewer ${dto.reviewerId} not found`);
-    }
-
-    const piResearcher = this.identityService.getResearcher(
-      proposal.principalResearcherId,
-    );
-
-    // COI Rule 1 (BR-021 & BR-061): Proposer cannot review their own proposal (Self-Review)
-    if (
-      dto.reviewerId === proposal.principalResearcherId ||
-      (piResearcher && reviewer.personId === piResearcher.personId)
-    ) {
-      writeStructuredLog({
-        level: "warn",
-        event: "research.coi.blocked",
-        message: `Self-review blocked for proposal ${proposal.proposalId}`,
-        proposalId: proposal.proposalId,
-        reviewerId: dto.reviewerId,
-        rule: "BR-021/BR-061: Self-Review",
-      });
-      throw new ForbiddenException(
-        "BR-021 / BR-061: Proposer cannot be assigned as reviewer to their own proposal (Conflict of Interest)",
+  assignReviewer(
+    dto: AssignReviewerDto,
+    principal: AuthorizationPrincipal,
+  ): ProposalReviewRecord {
+    const proposal = this.requireProposal(dto.proposalId);
+    const institutionId = this.getProposalInstitutionId(proposal);
+    this.authorization.assertResearchOperation(principal, institutionId);
+    if (proposal.status !== "Screening" && proposal.status !== "UnderReview") {
+      throw this.validation(
+        `Reviewer assignment requires Screening or UnderReview status, found ${proposal.status}`,
       );
     }
 
-    // COI Rule 2 (BR-061): Manual conflict disclosure or same department / direct relation
-    let isConflict = false;
-    let conflictReason = "";
+    this.identityService.getResearcher(dto.reviewerId);
+    const decision = this.conflicts.evaluate({
+      principalResearcherId: proposal.principalResearcherId,
+      reviewerId: dto.reviewerId,
+      hasDeclaredConflict: dto.hasDeclaredConflict,
+    });
 
-    if (dto.hasDeclaredConflict) {
-      isConflict = true;
-      conflictReason = "Manual Conflict Disclosure declared";
-    } else if (
-      piResearcher &&
-      piResearcher.institutionId === reviewer.institutionId &&
-      piResearcher.department &&
-      piResearcher.department === reviewer.department
-    ) {
-      isConflict = true;
-      conflictReason = "BR-061: Same department membership conflict";
-    }
-
-    const reviewId = `REV-${Date.now()}`;
-    const reviewRecord: ProposalReviewRecord = {
-      reviewId,
+    const review: ProposalReviewRecord = {
+      reviewId: randomUUID(),
       proposalId: dto.proposalId,
       reviewerId: dto.reviewerId,
-      conflictStatus: isConflict ? "Conflict" : "Clear",
-      conflictReason: isConflict ? conflictReason : undefined,
+      conflictStatus: decision.conflict ? "Conflict" : "Clear",
+      conflictReason: decision.reason,
     };
+    const list = [...(this.reviews.get(dto.proposalId) ?? []), review];
+    this.reviews.set(dto.proposalId, list);
 
-    const existingReviews = this.reviews.get(dto.proposalId) || [];
-    existingReviews.push(reviewRecord);
-    this.reviews.set(dto.proposalId, existingReviews);
-
-    // Update proposal status to UnderReview if cleared and valid
-    if (proposal.status === "Submitted" || proposal.status === "Screening") {
+    if (!decision.conflict && proposal.status === "Screening") {
       this.proposals.set(dto.proposalId, {
         ...proposal,
         status: "UnderReview",
       });
     }
 
-    writeStructuredLog({
-      level: "info",
-      event: "research.proposal.reviewer_assigned",
-      proposalId: dto.proposalId,
-      reviewerId: dto.reviewerId,
-      conflictStatus: reviewRecord.conflictStatus,
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.reviewer_assigned",
+      entityType: "ProposalReview",
+      entityId: review.reviewId,
+      metadata: {
+        sourceId: "BR-061",
+        conflict: decision.conflict,
+        policyVersion: decision.policyVersion,
+      },
     });
-
-    return reviewRecord;
+    return { ...review };
   }
 
-  // --- BR-022: Prevent Conflicted Reviewer from Submitting Review ---
-  submitReview(dto: {
-    reviewId: string;
-    score: number;
-    recommendation: "Approve" | "Reject" | "Revision";
-    comments?: string;
-  }): ProposalReviewRecord {
-    let targetProposalId: string | undefined;
-    let targetReviewIndex = -1;
-    let targetReview: ProposalReviewRecord | undefined;
-
-    for (const [propId, revList] of this.reviews.entries()) {
-      const idx = revList.findIndex((r) => r.reviewId === dto.reviewId);
-      if (idx !== -1) {
-        targetProposalId = propId;
-        targetReviewIndex = idx;
-        targetReview = revList[idx];
-        break;
-      }
-    }
-
-    if (!targetReview || !targetProposalId) {
-      throw new NotFoundException(`Review record ${dto.reviewId} not found`);
-    }
-
-    // BR-022: Conflicted reviewer is blocked from proceeding with evaluation
-    if (targetReview.conflictStatus === "Conflict") {
-      throw new ForbiddenException(
-        `BR-022: Reviewer is conflicted (${targetReview.conflictReason}) and blocked from submitting evaluation`,
+  submitReview(
+    dto: {
+      reviewId: string;
+      score: number;
+      recommendation: "Approve" | "Reject" | "Revision";
+      comments?: string;
+    },
+    principal: AuthorizationPrincipal,
+  ): ProposalReviewRecord {
+    const located = this.findReview(dto.reviewId);
+    const proposal = this.requireProposal(located.proposalId);
+    this.authorization.assertResearchOperation(
+      principal,
+      this.getProposalInstitutionId(proposal),
+    );
+    const reviewer = this.identityService.getResearcher(
+      located.review.reviewerId,
+    );
+    if (!principal.personId || principal.personId !== reviewer.personId) {
+      throw this.forbidden(
+        "BR-021/UC-10: A review may be submitted only by its assigned reviewer",
       );
     }
+    if (located.review.conflictStatus === "Conflict") {
+      throw this.forbidden(
+        `BR-022: Conflicted reviewer is blocked (${located.review.conflictReason ?? "Conflict"})`,
+      );
+    }
+    if (!Number.isFinite(dto.score)) {
+      throw this.validation("Review score must be a finite number");
+    }
 
-    const updatedReview: ProposalReviewRecord = {
-      ...targetReview,
+    if (proposal.status !== "UnderReview") {
+      throw this.validation("Review submission requires UnderReview status");
+    }
+
+    const updated: ProposalReviewRecord = {
+      ...located.review,
       score: dto.score,
       recommendation: dto.recommendation,
-      comments: dto.comments,
+      comments: dto.comments?.trim() || undefined,
       reviewedAt: new Date().toISOString(),
     };
-
-    const revList = this.reviews.get(targetProposalId)!;
-    revList[targetReviewIndex] = updatedReview;
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.proposal.review_submitted",
-      reviewId: dto.reviewId,
-      proposalId: targetProposalId,
-      recommendation: dto.recommendation,
+    const list = [...(this.reviews.get(located.proposalId) ?? [])];
+    list[located.index] = updated;
+    this.reviews.set(located.proposalId, list);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.review_submitted",
+      entityType: "ProposalReview",
+      entityId: updated.reviewId,
+      metadata: { sourceId: "FR-023" },
     });
-
-    return updatedReview;
+    return { ...updated };
   }
 
-  // --- BR-021 & BR-049: Proposal Decision & Auto Project Creation ---
-  issueDecision(dto: {
-    proposalId: string;
-    decision: "Approved" | "Rejected";
-    decisionByResearcherId: string;
-    reason?: string;
-  }): ResearchProposalRecord {
-    const proposal = this.proposals.get(dto.proposalId);
-    if (!proposal) {
-      throw new NotFoundException(`Proposal ${dto.proposalId} not found`);
+  requestRevision(
+    proposalId: string,
+    reason: string,
+    principal: AuthorizationPrincipal,
+  ): ResearchProposalRecord {
+    const proposal = this.requireProposal(proposalId);
+    this.authorization.assertResearchOperation(
+      principal,
+      this.getProposalInstitutionId(proposal),
+    );
+    if (proposal.status !== "UnderReview") {
+      throw this.validation("Revision can be requested only from UnderReview");
     }
+    if (!reason?.trim()) {
+      throw this.validation("Revision reason is required");
+    }
+    const updated = { ...proposal, status: "RevisionRequested" as const };
+    this.proposals.set(proposalId, updated);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.revision_requested",
+      entityType: "ResearchProposal",
+      entityId: proposalId,
+      metadata: { reason: reason.trim(), sourceId: "FR-023" },
+    });
+    return { ...updated };
+  }
 
-    // BR-021: Decision cannot be issued by the proposal's PI
-    if (proposal.principalResearcherId === dto.decisionByResearcherId) {
-      throw new ForbiddenException(
-        "BR-021: Proposal PI cannot issue approval decision on their own proposal",
+  withdrawProposal(
+    proposalId: string,
+    principal: AuthorizationPrincipal,
+  ): ResearchProposalRecord {
+    const proposal = this.requireProposal(proposalId);
+    const researcher = this.identityService.getResearcher(
+      proposal.principalResearcherId,
+    );
+    this.authorization.assertResearchOperation(
+      principal,
+      researcher.institutionId,
+    );
+    if (!principal.personId || principal.personId !== researcher.personId) {
+      throw this.forbidden("Only the proposal owner can withdraw the proposal");
+    }
+    if (["Approved", "Rejected", "Withdrawn"].includes(proposal.status)) {
+      throw this.validation(`Cannot withdraw proposal from ${proposal.status}`);
+    }
+    const updated = { ...proposal, status: "Withdrawn" as const };
+    this.proposals.set(proposalId, updated);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.withdrawn",
+      entityType: "ResearchProposal",
+      entityId: proposalId,
+      metadata: { sourceId: "FR-022" },
+    });
+    return { ...updated };
+  }
+
+  issueDecision(
+    dto: {
+      proposalId: string;
+      decision: "Approved" | "Rejected";
+      reason?: string;
+    },
+    principal: AuthorizationPrincipal,
+  ): ResearchProposalRecord {
+    const proposal = this.requireProposal(dto.proposalId);
+    const institutionId = this.getProposalInstitutionId(proposal);
+    this.authorization.assertResearchDecision(principal, institutionId);
+    if (proposal.status !== "UnderReview") {
+      throw this.validation(
+        `Proposal decision requires UnderReview status, found ${proposal.status}`,
       );
     }
 
-    let createdProjectId: string | undefined;
+    const pi = this.identityService.getResearcher(
+      proposal.principalResearcherId,
+    );
+    if (principal.personId && principal.personId === pi.personId) {
+      throw this.forbidden(
+        "BR-021: Proposal PI cannot issue the decision on their own proposal",
+      );
+    }
+    const completedClearReviews = (
+      this.reviews.get(dto.proposalId) ?? []
+    ).filter(
+      (review) =>
+        review.conflictStatus === "Clear" &&
+        Boolean(review.reviewedAt) &&
+        Boolean(review.recommendation),
+    );
+    if (completedClearReviews.length === 0) {
+      throw this.validation(
+        "FR-023: At least one completed non-conflicted review is required before decision",
+      );
+    }
 
-    // BR-049: Approved proposal automatically creates 1 default Research Project
+    let createdProjectId = proposal.createdProjectId;
     if (dto.decision === "Approved") {
-      const piResearcher = this.identityService.getResearcher(
-        proposal.principalResearcherId,
-      );
-      const institutionId = piResearcher
-        ? piResearcher.institutionId
-        : "INST-001";
-
-      const createdProject =
-        this.projectService.createProjectFromApprovedProposal({
-          proposalId: proposal.proposalId,
-          leaderId: proposal.principalResearcherId,
-          institutionId,
-          title: proposal.title,
-        });
-
-      createdProjectId = createdProject.projectId;
+      const project = this.projectService.createProjectFromApprovedProposal({
+        proposalId: proposal.proposalId,
+        leaderId: proposal.principalResearcherId,
+        institutionId,
+        title: proposal.title,
+        actorUserId: principal.userId,
+      });
+      createdProjectId = project.projectId;
     }
 
     const updated: ResearchProposalRecord = {
       ...proposal,
-      status: dto.decision === "Approved" ? "Approved" : "Rejected",
+      status: dto.decision,
       decision: dto.decision,
       decisionAt: new Date().toISOString(),
       createdProjectId,
     };
-
     this.proposals.set(dto.proposalId, updated);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.proposal.decision_issued",
-      proposalId: dto.proposalId,
-      decision: dto.decision,
-      createdProjectId,
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.proposal.decision_issued",
+      entityType: "ResearchProposal",
+      entityId: dto.proposalId,
+      metadata: {
+        sourceId: "BR-021/BR-049",
+        decision: dto.decision,
+        reason: dto.reason?.trim() || null,
+        createdProjectId: createdProjectId ?? null,
+      },
     });
-
-    return updated;
+    return { ...updated };
   }
 
-  getProposal(proposalId: string): ResearchProposalRecord {
+  getProposal(
+    proposalId: string,
+    principal: AuthorizationPrincipal,
+  ): ResearchProposalRecord {
+    const proposal = this.requireProposal(proposalId);
+    this.authorization.assertResearchOperation(
+      principal,
+      this.getProposalInstitutionId(proposal),
+    );
+    return { ...proposal };
+  }
+
+  getReviewsForProposal(
+    proposalId: string,
+    principal: AuthorizationPrincipal,
+  ): ProposalReviewRecord[] {
+    const proposal = this.requireProposal(proposalId);
+    this.authorization.assertResearchOperation(
+      principal,
+      this.getProposalInstitutionId(proposal),
+    );
+    return (this.reviews.get(proposalId) ?? []).map((review) => ({
+      ...review,
+    }));
+  }
+
+  getAllProposals(principal: AuthorizationPrincipal): ResearchProposalRecord[] {
+    return Array.from(this.proposals.values())
+      .filter((proposal) => {
+        const pi = this.identityService.getResearcher(
+          proposal.principalResearcherId,
+        );
+        return this.authorization.canManageInstitution(
+          principal,
+          pi.institutionId,
+        );
+      })
+      .map((proposal) => ({ ...proposal }));
+  }
+
+  private getProposalInstitutionId(proposal: ResearchProposalRecord): string {
+    return this.identityService.getResearcher(proposal.principalResearcherId)
+      .institutionId;
+  }
+
+  private requireProposal(proposalId: string): ResearchProposalRecord {
     const proposal = this.proposals.get(proposalId);
     if (!proposal) {
-      throw new NotFoundException(`Proposal ${proposalId} not found`);
+      throw new AppException({
+        code: ErrorCode.NotFound,
+        status: HttpStatus.NOT_FOUND,
+        message: `Proposal ${proposalId} not found`,
+      });
     }
     return proposal;
   }
 
-  getReviewsForProposal(proposalId: string): ProposalReviewRecord[] {
-    return this.reviews.get(proposalId) || [];
+  private findReview(reviewId: string): {
+    proposalId: string;
+    index: number;
+    review: ProposalReviewRecord;
+  } {
+    for (const [proposalId, list] of this.reviews.entries()) {
+      const index = list.findIndex((review) => review.reviewId === reviewId);
+      if (index >= 0) return { proposalId, index, review: list[index] };
+    }
+    throw new AppException({
+      code: ErrorCode.NotFound,
+      status: HttpStatus.NOT_FOUND,
+      message: `Review ${reviewId} not found`,
+    });
   }
 
-  getAllProposals(): ResearchProposalRecord[] {
-    return Array.from(this.proposals.values());
+  private validateProposalContent(
+    title: string,
+    abstract: string,
+    initialBudget?: number,
+  ): void {
+    if (!title?.trim() || !abstract?.trim()) {
+      throw this.validation("Proposal title and abstract are required");
+    }
+    if (
+      initialBudget !== undefined &&
+      (!Number.isFinite(initialBudget) || initialBudget < 0)
+    ) {
+      throw this.validation(
+        "Initial budget must be a non-negative finite number",
+      );
+    }
+  }
+
+  private validation(message: string): AppException {
+    return new AppException({ code: ErrorCode.Validation, message });
+  }
+
+  private forbidden(message: string): AppException {
+    writeStructuredLog({
+      level: "warn",
+      event: "research.authorization.denied",
+      message,
+    });
+    return new AppException({
+      code: ErrorCode.Forbidden,
+      status: HttpStatus.FORBIDDEN,
+      message,
+    });
   }
 }

@@ -1,28 +1,52 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-} from "@nestjs/common";
-import {
-  ResearchProjectRecord,
+import { HttpStatus, Injectable } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+
+import type {
   AmendmentRequestRecord,
   ResearchOutputRecord,
+  ResearchProjectRecord,
   ResearchProjectStatus,
 } from "@ihepsrs/contracts";
-import { writeStructuredLog } from "../../common/observability/structured-log";
+
+import { AppException } from "../../common/errors/app-exception";
+import { ErrorCode } from "../../common/errors/error-code";
+import type { AuthorizationPrincipal } from "../../identity/authorization/authorization.types";
+import { ResearchAuditService } from "./research-audit.service";
+import { ResearchAuthorizationService } from "./research-authorization.service";
+
+interface AmendmentPayload {
+  newLeaderId?: string;
+  newEndDate?: string;
+}
+
+const PROJECT_TRANSITIONS: Readonly<
+  Record<ResearchProjectStatus, readonly ResearchProjectStatus[]>
+> = {
+  Planned: ["Active", "Terminated"],
+  Active: ["OnHold", "Completed", "Terminated"],
+  OnHold: ["Active", "Completed", "Terminated"],
+  Completed: ["Reopened", "Archived"],
+  Reopened: ["Active", "Terminated"],
+  Terminated: ["Archived"],
+  Archived: [],
+};
 
 @Injectable()
 export class ProjectService {
-  private projects = new Map<string, ResearchProjectRecord>();
-  private amendments = new Map<string, AmendmentRequestRecord[]>();
-  private outputs = new Map<string, ResearchOutputRecord[]>();
+  private readonly projects = new Map<string, ResearchProjectRecord>();
+  private readonly amendments = new Map<string, AmendmentRequestRecord[]>();
+  private readonly amendmentPayloads = new Map<string, AmendmentPayload>();
+  private readonly outputs = new Map<string, ResearchOutputRecord[]>();
 
-  constructor() {
+  constructor(
+    private readonly authorization: ResearchAuthorizationService,
+    private readonly audit: ResearchAuditService,
+  ) {
     this.seedInitialData();
   }
 
-  private seedInitialData() {
-    const proj1: ResearchProjectRecord = {
+  private seedInitialData(): void {
+    const project: ResearchProjectRecord = {
       projectId: "PROJ-101",
       proposalId: "PROP-100",
       leaderId: "RES-101",
@@ -32,320 +56,513 @@ export class ProjectService {
       endDate: "2026-12-31",
       status: "Active",
     };
-    this.projects.set(proj1.projectId, proj1);
-    this.amendments.set(proj1.projectId, []);
-
-    const output1: ResearchOutputRecord = {
-      outputId: "OUT-101",
-      projectId: "PROJ-101",
-      outputType: "Prototype",
-      title: "Interoperable Micro-service API Prototype",
-      status: "Accepted",
-      completedAt: "2026-06-30T12:00:00Z",
-    };
-    this.outputs.set(proj1.projectId, [output1]);
+    this.projects.set(project.projectId, project);
+    this.amendments.set(project.projectId, []);
+    this.outputs.set(project.projectId, [
+      {
+        outputId: "OUT-101",
+        projectId: project.projectId,
+        outputType: "Prototype",
+        title: "Interoperable Micro-service API Prototype",
+        status: "Accepted",
+        completedAt: "2026-06-30T12:00:00Z",
+      },
+    ]);
   }
 
-  // --- BR-049: Creation via Approved Proposal ---
   createProjectFromApprovedProposal(params: {
     proposalId: string;
     leaderId: string;
     institutionId: string;
     title: string;
+    actorUserId: string;
   }): ResearchProjectRecord {
-    const projectId = `PROJ-${Date.now()}`;
+    const existing = Array.from(this.projects.values()).find(
+      (project) => project.proposalId === params.proposalId,
+    );
+    if (existing) return { ...existing };
+
+    if (!params.leaderId?.trim() || !params.institutionId?.trim()) {
+      throw this.validation(
+        "BR-020: Project leader and institution are required",
+      );
+    }
+
     const project: ResearchProjectRecord = {
-      projectId,
+      projectId: randomUUID(),
       proposalId: params.proposalId,
       leaderId: params.leaderId,
       institutionId: params.institutionId,
-      title: params.title,
-      startDate: new Date().toISOString().split("T")[0],
-      status: "Active",
+      title: params.title.trim(),
+      startDate: new Date().toISOString().slice(0, 10),
+      status: "Planned",
     };
-
-    this.projects.set(projectId, project);
-    this.amendments.set(projectId, []);
-    this.outputs.set(projectId, []);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.project.created_from_proposal",
-      projectId,
-      proposalId: params.proposalId,
+    this.projects.set(project.projectId, project);
+    this.amendments.set(project.projectId, []);
+    this.outputs.set(project.projectId, []);
+    this.audit.append({
+      actorUserId: params.actorUserId,
+      action: "research.project.created_from_proposal",
+      entityType: "ResearchProject",
+      entityId: project.projectId,
+      metadata: { sourceId: "BR-049", proposalId: params.proposalId },
     });
-
-    return project;
+    return { ...project };
   }
 
-  // --- BR-020 & BR-049: Direct Admin Project Creation ---
-  createDirectProject(dto: {
-    leaderId: string;
-    institutionId: string;
-    title: string;
-    startDate: string;
-    endDate?: string;
-    adminReason: string;
-    adminDecisionRef: string;
-  }): ResearchProjectRecord {
-    // BR-020: Project must have at least 1 Leader and valid date range
-    if (!dto.leaderId?.trim()) {
-      throw new BadRequestException(
-        "BR-020: Project must have at least one Principal Investigator (Leader)",
-      );
+  createDirectProject(
+    dto: {
+      leaderId: string;
+      institutionId: string;
+      title: string;
+      startDate: string;
+      endDate?: string;
+      adminReason: string;
+      adminDecisionRef: string;
+    },
+    principal: AuthorizationPrincipal,
+  ): ResearchProjectRecord {
+    this.authorization.assertResearchDecision(principal, dto.institutionId);
+    if (!dto.leaderId?.trim() || !dto.title?.trim()) {
+      throw this.validation("BR-020: Project leader and title are required");
     }
-    if (dto.endDate && dto.endDate < dto.startDate) {
-      throw new BadRequestException(
-        "BR-020: Project endDate must be on or after startDate",
-      );
-    }
-
-    // BR-049: Direct creation without proposal requires admin reason & decision
     if (!dto.adminReason?.trim() || !dto.adminDecisionRef?.trim()) {
-      throw new BadRequestException(
-        "BR-049: Creating a project without an approved proposal requires authorized admin reason and decision reference",
+      throw this.validation(
+        "BR-049: Direct project creation requires reason and decision reference",
       );
     }
+    this.assertDateRange(dto.startDate, dto.endDate);
 
-    const projectId = `PROJ-${Date.now()}`;
     const project: ResearchProjectRecord = {
-      projectId,
-      leaderId: dto.leaderId,
-      institutionId: dto.institutionId,
-      title: dto.title,
+      projectId: randomUUID(),
+      leaderId: dto.leaderId.trim(),
+      institutionId: dto.institutionId.trim(),
+      title: dto.title.trim(),
       startDate: dto.startDate,
       endDate: dto.endDate,
-      status: "Active",
+      status: "Planned",
     };
-
-    this.projects.set(projectId, project);
-    this.amendments.set(projectId, []);
-    this.outputs.set(projectId, []);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.project.created_direct_admin",
-      projectId,
-      leaderId: dto.leaderId,
-      adminReason: dto.adminReason,
-      adminDecisionRef: dto.adminDecisionRef,
+    this.projects.set(project.projectId, project);
+    this.amendments.set(project.projectId, []);
+    this.outputs.set(project.projectId, []);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.project.created_direct_admin",
+      entityType: "ResearchProject",
+      entityId: project.projectId,
+      metadata: {
+        sourceId: "BR-049",
+        reason: dto.adminReason.trim(),
+        decisionRef: dto.adminDecisionRef.trim(),
+      },
     });
-
-    return project;
+    return { ...project };
   }
 
-  // --- BR-050: Amendment Requests for Leader / Scope / Duration Changes ---
-  requestAmendment(dto: {
-    projectId: string;
-    requestedBy: string;
-    type: "LeaderChange" | "ScopeChange" | "Extension";
-    reason: string;
-    newLeaderId?: string;
-    newEndDate?: string;
-  }): AmendmentRequestRecord {
-    const project = this.projects.get(dto.projectId);
-    if (!project) {
-      throw new NotFoundException(`Project ${dto.projectId} not found`);
-    }
-
-    if (project.status !== "Active" && project.status !== "OnHold") {
-      throw new BadRequestException(
-        `Cannot request amendment for project in status ${project.status}`,
-      );
-    }
-
-    const amendmentId = `AMD-${Date.now()}`;
-    const amendment: AmendmentRequestRecord = {
-      amendmentId,
-      projectId: dto.projectId,
-      requestedBy: dto.requestedBy,
-      type: dto.type,
-      reason: dto.reason,
-      newLeaderId: dto.newLeaderId,
-      newEndDate: dto.newEndDate,
-      status: "Pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    const projectAmendments = this.amendments.get(dto.projectId) || [];
-    projectAmendments.push(amendment);
-    this.amendments.set(dto.projectId, projectAmendments);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.project.amendment_requested",
-      amendmentId,
-      projectId: dto.projectId,
-      type: dto.type,
-    });
-
-    return amendment;
-  }
-
-  decideAmendment(dto: {
-    amendmentId: string;
-    decision: "Approved" | "Rejected";
-    decidedBy: string;
-  }): AmendmentRequestRecord {
-    let targetProjectId: string | undefined;
-    let targetIndex = -1;
-    let targetAmendment: AmendmentRequestRecord | undefined;
-
-    for (const [pId, list] of this.amendments.entries()) {
-      const idx = list.findIndex((a) => a.amendmentId === dto.amendmentId);
-      if (idx !== -1) {
-        targetProjectId = pId;
-        targetIndex = idx;
-        targetAmendment = list[idx];
-        break;
-      }
-    }
-
-    if (!targetAmendment || !targetProjectId) {
-      throw new NotFoundException(
-        `Amendment request ${dto.amendmentId} not found`,
-      );
-    }
-
-    const project = this.projects.get(targetProjectId)!;
-
-    const updatedAmendment: AmendmentRequestRecord = {
-      ...targetAmendment,
-      status: dto.decision,
-      decidedAt: new Date().toISOString(),
-    };
-
-    // Apply changes if Approved (BR-050 preserves history by recording amendment record)
-    if (dto.decision === "Approved") {
-      if (
-        targetAmendment.type === "LeaderChange" &&
-        targetAmendment.newLeaderId
-      ) {
-        this.projects.set(targetProjectId, {
-          ...project,
-          leaderId: targetAmendment.newLeaderId,
-        });
-      } else if (
-        targetAmendment.type === "Extension" &&
-        targetAmendment.newEndDate
-      ) {
-        this.projects.set(targetProjectId, {
-          ...project,
-          endDate: targetAmendment.newEndDate,
-        });
-      }
-    }
-
-    const list = this.amendments.get(targetProjectId)!;
-    list[targetIndex] = updatedAmendment;
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.project.amendment_decided",
-      amendmentId: dto.amendmentId,
-      decision: dto.decision,
-      projectId: targetProjectId,
-    });
-
-    return updatedAmendment;
-  }
-
-  // --- FR-027: Register Research Outputs ---
-  registerOutput(dto: {
-    projectId: string;
-    outputType: "Dataset" | "Report" | "Prototype" | "Publication" | "Other";
-    title: string;
-    documentId?: string;
-  }): ResearchOutputRecord {
-    const project = this.projects.get(dto.projectId);
-    if (!project) {
-      throw new NotFoundException(`Project ${dto.projectId} not found`);
-    }
-
-    const outputId = `OUT-${Date.now()}`;
-    const output: ResearchOutputRecord = {
-      outputId,
-      projectId: dto.projectId,
-      outputType: dto.outputType,
-      title: dto.title,
-      status: "Accepted",
-      documentId: dto.documentId,
-      completedAt: new Date().toISOString(),
-    };
-
-    const projectOutputs = this.outputs.get(dto.projectId) || [];
-    projectOutputs.push(output);
-    this.outputs.set(dto.projectId, projectOutputs);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.output.registered",
-      outputId,
-      projectId: dto.projectId,
-      outputType: dto.outputType,
-    });
-
-    return output;
-  }
-
-  // --- UC-11 & State Transitions: Project Completion Verification ---
-  updateProjectStatus(
+  transitionProject(
     projectId: string,
-    newStatus: ResearchProjectStatus,
+    targetStatus: ResearchProjectStatus,
+    principal: AuthorizationPrincipal,
+    options: {
+      startDate?: string;
+      endDate?: string;
+      amendmentId?: string;
+    } = {},
   ): ResearchProjectRecord {
-    const project = this.projects.get(projectId);
-    if (!project) {
-      throw new NotFoundException(`Project ${projectId} not found`);
+    const project = this.requireProject(projectId);
+    this.authorization.assertResearchOperation(
+      principal,
+      project.institutionId,
+    );
+    if (!PROJECT_TRANSITIONS[project.status].includes(targetStatus)) {
+      throw this.validation(
+        `ResearchProject transition ${project.status} -> ${targetStatus} is not allowed`,
+      );
     }
 
-    // UC-11: Cannot mark project as Completed unless mandatory required fields and at least 1 accepted output are present
-    if (newStatus === "Completed") {
-      const projectOutputs = this.outputs.get(projectId) || [];
-      const hasAcceptedOutputs = projectOutputs.some(
-        (o) => o.status === "Accepted",
-      );
+    let next: ResearchProjectRecord = { ...project, status: targetStatus };
+    if (project.status === "Planned" && targetStatus === "Active") {
+      const startDate = options.startDate ?? project.startDate;
+      const endDate = options.endDate ?? project.endDate;
+      this.assertDateRange(startDate, endDate, true);
+      next = { ...next, startDate, endDate };
+    }
 
-      if (!hasAcceptedOutputs) {
-        throw new BadRequestException(
-          "UC-11: Cannot complete project without at least one registered and accepted research output",
+    if (targetStatus === "Completed") {
+      this.assertProjectCompletable(projectId, next);
+    }
+
+    if (targetStatus === "Reopened") {
+      const amendment = options.amendmentId
+        ? this.findAmendment(options.amendmentId)
+        : undefined;
+      if (
+        !amendment ||
+        amendment.record.entityId !== projectId ||
+        amendment.record.changeType !== "Reopen" ||
+        amendment.record.status !== "Applied"
+      ) {
+        throw this.validation(
+          "ResearchProject Reopened requires an applied Reopen AmendmentRequest",
         );
       }
     }
 
-    const updated: ResearchProjectRecord = {
-      ...project,
-      status: newStatus,
-    };
-
-    this.projects.set(projectId, updated);
-
-    writeStructuredLog({
-      level: "info",
-      event: "research.project.status_updated",
-      projectId,
-      status: newStatus,
+    this.projects.set(projectId, next);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.project.transitioned",
+      entityType: "ResearchProject",
+      entityId: projectId,
+      metadata: {
+        sourceId: "FR-024",
+        from: project.status,
+        to: targetStatus,
+      },
     });
-
-    return updated;
+    return { ...next };
   }
 
-  getProject(projectId: string): ResearchProjectRecord {
-    const project = this.projects.get(projectId);
-    if (!project) {
-      throw new NotFoundException(`Project ${projectId} not found`);
+  requestAmendment(
+    dto: {
+      projectId: string;
+      changeType: "Leader" | "Scope" | "Duration" | "Reopen";
+      reason: string;
+      newLeaderId?: string;
+      newEndDate?: string;
+    },
+    principal: AuthorizationPrincipal,
+  ): AmendmentRequestRecord {
+    const project = this.requireProject(dto.projectId);
+    this.authorization.assertResearchOperation(
+      principal,
+      project.institutionId,
+    );
+    if (!dto.reason?.trim()) {
+      throw this.validation("BR-050: Amendment reason is required");
     }
+    if (dto.changeType === "Leader" && !dto.newLeaderId?.trim()) {
+      throw this.validation("Leader amendment requires newLeaderId");
+    }
+    if (dto.changeType === "Duration") {
+      this.assertDateRange(project.startDate, dto.newEndDate, true);
+    }
+    if (dto.changeType === "Reopen" && project.status !== "Completed") {
+      throw this.validation("Reopen amendment requires a Completed project");
+    }
+
+    const amendment: AmendmentRequestRecord = {
+      amendmentId: randomUUID(),
+      entityType: "ResearchProject",
+      entityId: dto.projectId,
+      changeType: dto.changeType,
+      requestedByUserId: principal.userId,
+      reason: dto.reason.trim(),
+      status: "Submitted",
+    };
+    const list = [...(this.amendments.get(dto.projectId) ?? []), amendment];
+    this.amendments.set(dto.projectId, list);
+    this.amendmentPayloads.set(amendment.amendmentId, {
+      newLeaderId: dto.newLeaderId?.trim(),
+      newEndDate: dto.newEndDate,
+    });
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.project.amendment_requested",
+      entityType: "AmendmentRequest",
+      entityId: amendment.amendmentId,
+      metadata: { sourceId: "BR-050", changeType: dto.changeType },
+    });
+    return { ...amendment };
+  }
+
+  beginAmendmentReview(
+    amendmentId: string,
+    principal: AuthorizationPrincipal,
+  ): AmendmentRequestRecord {
+    const located = this.findAmendment(amendmentId);
+    const project = this.requireProject(located.projectId);
+    this.authorization.assertResearchDecision(principal, project.institutionId);
+    if (located.record.status !== "Submitted") {
+      throw this.validation("Only Submitted amendment may enter UnderReview");
+    }
+    const updated = { ...located.record, status: "UnderReview" as const };
+    this.replaceAmendment(located.projectId, located.index, updated);
+    return { ...updated };
+  }
+
+  decideAmendment(
+    amendmentId: string,
+    decision: "Approved" | "Rejected",
+    principal: AuthorizationPrincipal,
+  ): AmendmentRequestRecord {
+    const located = this.findAmendment(amendmentId);
+    const project = this.requireProject(located.projectId);
+    this.authorization.assertResearchDecision(principal, project.institutionId);
+    if (located.record.status !== "UnderReview") {
+      throw this.validation("Amendment decision requires UnderReview status");
+    }
+    const updated: AmendmentRequestRecord = {
+      ...located.record,
+      status: decision,
+      decisionId: randomUUID(),
+    };
+    this.replaceAmendment(located.projectId, located.index, updated);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.project.amendment_decided",
+      entityType: "AmendmentRequest",
+      entityId: amendmentId,
+      metadata: { sourceId: "BR-050", decision },
+    });
+    return { ...updated };
+  }
+
+  applyAmendment(
+    amendmentId: string,
+    principal: AuthorizationPrincipal,
+  ): AmendmentRequestRecord {
+    const located = this.findAmendment(amendmentId);
+    const project = this.requireProject(located.projectId);
+    this.authorization.assertResearchDecision(principal, project.institutionId);
+    if (located.record.status !== "Approved") {
+      throw this.validation("Only Approved amendment can be applied");
+    }
+    const payload = this.amendmentPayloads.get(amendmentId) ?? {};
+    let updatedProject = { ...project };
+    if (located.record.changeType === "Leader") {
+      if (!payload.newLeaderId)
+        throw this.validation("Leader amendment payload is incomplete");
+      updatedProject = { ...updatedProject, leaderId: payload.newLeaderId };
+    } else if (located.record.changeType === "Duration") {
+      this.assertDateRange(project.startDate, payload.newEndDate, true);
+      updatedProject = { ...updatedProject, endDate: payload.newEndDate };
+    }
+    // Scope changes are deliberately recorded but not given invented fields in the canonical project model.
+    // Reopen is consumed by the explicit Completed -> Reopened transition.
+
+    const applied: AmendmentRequestRecord = {
+      ...located.record,
+      status: "Applied",
+    };
+    // NFR-014 prototype atomicity: all validation completes before either record is committed.
+    this.projects.set(project.projectId, updatedProject);
+    this.replaceAmendment(located.projectId, located.index, applied);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.project.amendment_applied",
+      entityType: "AmendmentRequest",
+      entityId: amendmentId,
+      metadata: { sourceId: "BR-050", changeType: applied.changeType },
+    });
+    return { ...applied };
+  }
+
+  registerOutput(
+    dto: {
+      projectId: string;
+      outputType: ResearchOutputRecord["outputType"];
+      title: string;
+      documentId?: string;
+    },
+    principal: AuthorizationPrincipal,
+  ): ResearchOutputRecord {
+    const project = this.requireProject(dto.projectId);
+    this.authorization.assertResearchOperation(
+      principal,
+      project.institutionId,
+    );
+    if (!dto.title?.trim())
+      throw this.validation("Research output title is required");
+
+    const output: ResearchOutputRecord = {
+      outputId: randomUUID(),
+      projectId: dto.projectId,
+      outputType: dto.outputType,
+      title: dto.title.trim(),
+      status: "Submitted",
+      documentId: dto.documentId?.trim() || undefined,
+    };
+    this.outputs.set(dto.projectId, [
+      ...(this.outputs.get(dto.projectId) ?? []),
+      output,
+    ]);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.output.registered",
+      entityType: "ResearchOutput",
+      entityId: output.outputId,
+      metadata: { sourceId: "FR-027" },
+    });
+    return { ...output };
+  }
+
+  acceptOutput(
+    projectId: string,
+    outputId: string,
+    principal: AuthorizationPrincipal,
+  ): ResearchOutputRecord {
+    const project = this.requireProject(projectId);
+    this.authorization.assertResearchOperation(
+      principal,
+      project.institutionId,
+    );
+    const list = [...(this.outputs.get(projectId) ?? [])];
+    const index = list.findIndex((output) => output.outputId === outputId);
+    if (index < 0) throw this.notFound(`ResearchOutput ${outputId} not found`);
+    if (list[index].status !== "Submitted") {
+      throw this.validation("Only Submitted research output can be accepted");
+    }
+    const updated: ResearchOutputRecord = {
+      ...list[index],
+      status: "Accepted",
+      completedAt: new Date().toISOString(),
+    };
+    list[index] = updated;
+    this.outputs.set(projectId, list);
+    this.audit.append({
+      actorUserId: principal.userId,
+      action: "research.output.accepted",
+      entityType: "ResearchOutput",
+      entityId: outputId,
+      metadata: { sourceId: "FR-027" },
+    });
+    return { ...updated };
+  }
+
+  getProject(
+    projectId: string,
+    principal?: AuthorizationPrincipal,
+  ): ResearchProjectRecord {
+    const project = this.requireProject(projectId);
+    if (principal) {
+      this.authorization.assertResearchOperation(
+        principal,
+        project.institutionId,
+      );
+    }
+    return { ...project };
+  }
+
+  getProjectAmendments(
+    projectId: string,
+    principal: AuthorizationPrincipal,
+  ): AmendmentRequestRecord[] {
+    const project = this.requireProject(projectId);
+    this.authorization.assertResearchOperation(
+      principal,
+      project.institutionId,
+    );
+    return (this.amendments.get(projectId) ?? []).map((item) => ({ ...item }));
+  }
+
+  getProjectOutputs(
+    projectId: string,
+    principal: AuthorizationPrincipal,
+  ): ResearchOutputRecord[] {
+    const project = this.requireProject(projectId);
+    this.authorization.assertResearchOperation(
+      principal,
+      project.institutionId,
+    );
+    return (this.outputs.get(projectId) ?? []).map((item) => ({ ...item }));
+  }
+
+  getAllProjects(principal: AuthorizationPrincipal): ResearchProjectRecord[] {
+    return Array.from(this.projects.values())
+      .filter((project) =>
+        this.authorization.canManageInstitution(
+          principal,
+          project.institutionId,
+        ),
+      )
+      .map((project) => ({ ...project }));
+  }
+
+  countProjectsForProposal(proposalId: string): number {
+    return Array.from(this.projects.values()).filter(
+      (project) => project.proposalId === proposalId,
+    ).length;
+  }
+
+  private assertProjectCompletable(
+    projectId: string,
+    project: ResearchProjectRecord,
+  ): void {
+    this.assertDateRange(project.startDate, project.endDate, true);
+    if (!project.leaderId?.trim()) {
+      throw this.validation("BR-020: Completed project requires a leader");
+    }
+    const accepted = (this.outputs.get(projectId) ?? []).some(
+      (output) => output.status === "Accepted",
+    );
+    if (!accepted) {
+      throw this.validation(
+        "UC-11: Project cannot become Completed without an accepted research output",
+      );
+    }
+  }
+
+  private assertDateRange(
+    startDate: string | undefined,
+    endDate: string | undefined,
+    requireEndDate = false,
+  ): void {
+    if (!startDate || !Number.isFinite(Date.parse(startDate))) {
+      throw this.validation("Project startDate is required and must be valid");
+    }
+    if (requireEndDate && !endDate) {
+      throw this.validation(
+        "BR-020: Active/approved project requires a defined period",
+      );
+    }
+    if (endDate) {
+      if (!Number.isFinite(Date.parse(endDate))) {
+        throw this.validation("Project endDate must be valid");
+      }
+      if (Date.parse(endDate) < Date.parse(startDate)) {
+        throw this.validation("BR-020: endDate must be on or after startDate");
+      }
+    }
+  }
+
+  private requireProject(projectId: string): ResearchProjectRecord {
+    const project = this.projects.get(projectId);
+    if (!project) throw this.notFound(`Project ${projectId} not found`);
     return project;
   }
 
-  getProjectAmendments(projectId: string): AmendmentRequestRecord[] {
-    return this.amendments.get(projectId) || [];
+  private findAmendment(amendmentId: string): {
+    projectId: string;
+    index: number;
+    record: AmendmentRequestRecord;
+  } {
+    for (const [projectId, list] of this.amendments.entries()) {
+      const index = list.findIndex((item) => item.amendmentId === amendmentId);
+      if (index >= 0) return { projectId, index, record: list[index] };
+    }
+    throw this.notFound(`AmendmentRequest ${amendmentId} not found`);
   }
 
-  getProjectOutputs(projectId: string): ResearchOutputRecord[] {
-    return this.outputs.get(projectId) || [];
+  private replaceAmendment(
+    projectId: string,
+    index: number,
+    record: AmendmentRequestRecord,
+  ): void {
+    const list = [...(this.amendments.get(projectId) ?? [])];
+    list[index] = record;
+    this.amendments.set(projectId, list);
   }
 
-  getAllProjects(): ResearchProjectRecord[] {
-    return Array.from(this.projects.values());
+  private validation(message: string): AppException {
+    return new AppException({ code: ErrorCode.Validation, message });
+  }
+
+  private notFound(message: string): AppException {
+    return new AppException({
+      code: ErrorCode.NotFound,
+      status: HttpStatus.NOT_FOUND,
+      message,
+    });
   }
 }
