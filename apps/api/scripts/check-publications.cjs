@@ -1,11 +1,21 @@
 const {
+  AuthorizationDecisionService,
+} = require("../dist/identity/authorization/authorization-decision.service.js");
+const {
+  PersonIdentityService,
+} = require("../dist/research/domain/person-identity.service.js");
+const {
+  ResearchAuthorizationService,
+} = require("../dist/research/domain/research-authorization.service.js");
+const {
+  ResearchAuditService,
+} = require("../dist/research/domain/research-audit.service.js");
+const {
   PublicationService,
 } = require("../dist/publications/domain/publication.service.js");
 
 function assert(condition, testId, message) {
-  if (!condition) {
-    throw new Error(`${testId}: ${message}`);
-  }
+  if (!condition) throw new Error(`${testId}: ${message}`);
   console.log(`PASS ${testId}: ${message}`);
 }
 
@@ -19,154 +29,240 @@ function expectThrow(fn, testId, message) {
   assert(thrown, testId, message);
 }
 
+function principal(userId, personId, institutionId = "INST-001") {
+  return {
+    userId,
+    personId,
+    authenticated: true,
+    roleAssignments: [
+      {
+        assignmentId: `A-${userId}`,
+        roleCode: "RO",
+        institutionId,
+        validFrom: "2026-01-01T00:00:00.000Z",
+        validTo: null,
+      },
+    ],
+  };
+}
+
 function main() {
-  console.log(
-    "=== Checking Phase 07 Publications Tasks (TASK-PUB-001, TASK-PUB-002, TASK-PUB-003) ===",
+  console.log("=== Corrective verification: Phase 07 Publications 001-003 ===");
+  const authorization = new ResearchAuthorizationService(
+    new AuthorizationDecisionService(),
   );
+  const identity = new PersonIdentityService();
+  const audit = new ResearchAuditService();
+  const service = new PublicationService(identity, authorization, audit);
+  const operator = principal("U-RO", "P-103");
+  const otherInstitution = principal("U-B", "P-B", "INST-002");
 
-  const service = new PublicationService();
-
-  // -------------------------------------------------------------
-  // 1. TASK-PUB-001 & TASK-PUB-003: Publication Registry & Author Ordering (FR-028, BR-024, BR-048)
-  // -------------------------------------------------------------
-
-  // BR-024: Link at least 1 author
   expectThrow(
     () =>
-      service.registerPublication({
-        title: "Test Publication without Authors",
-        type: "Article",
-        authors: [],
-      }),
+      service.registerPublication(
+        { title: "No authors", type: "Article", authors: [] },
+        operator,
+      ),
     "TC-BR-024",
-    "BR-024: Publication registration fails if no authors are linked",
+    "Publication without authors is rejected",
   );
-
-  // BR-048: Author order must start from 1 and be unique
   expectThrow(
     () =>
-      service.registerPublication({
-        title: "Test Publication with Invalid Author Order",
-        type: "Article",
-        authors: [
-          {
-            authorName: "Author One",
-            authorOrder: 1,
-            affiliationText: "Univ A",
-          },
-          {
-            authorName: "Author Two",
-            authorOrder: 1, // Duplicate order
-            affiliationText: "Univ B",
-          },
-        ],
-      }),
-    "TC-BR-048",
-    "BR-048: Publication registration fails if duplicate authorOrder specified",
+      service.registerPublication(
+        {
+          title: "External-only publication",
+          type: "Article",
+          authors: [
+            {
+              authorName: "External Author",
+              authorOrder: 1,
+              affiliationText: "External University",
+            },
+          ],
+        },
+        operator,
+      ),
+    "TC-BR-024",
+    "New Publication must link at least one internal Researcher, not merely any author",
   );
-
-  // BR-048: Author must specify affiliation
   expectThrow(
     () =>
-      service.registerPublication({
-        title: "Test Publication missing Affiliation",
-        type: "Article",
-        authors: [
-          {
-            authorName: "Author One",
-            authorOrder: 1,
-            // Missing affiliationText and affiliationOrgUnitId
-          },
-        ],
-      }),
+      service.registerPublication(
+        {
+          title: "Order gap",
+          type: "Article",
+          authors: [
+            {
+              researcherId: "RES-101",
+              authorName: "Internal Author",
+              authorOrder: 2,
+              affiliationText: "University A",
+            },
+          ],
+        },
+        operator,
+      ),
     "TC-BR-048",
-    "BR-048: Publication registration fails if author missing affiliation",
+    "Author order must start at 1 without gaps",
+  );
+  expectThrow(
+    () =>
+      service.registerPublication(
+        {
+          title: "Non-integer order",
+          type: "Article",
+          authors: [
+            {
+              researcherId: "RES-101",
+              authorName: "Internal Author",
+              authorOrder: 1.5,
+              affiliationText: "University A",
+            },
+          ],
+        },
+        operator,
+      ),
+    "TC-BR-048",
+    "Author order is an integer",
+  );
+  expectThrow(
+    () =>
+      service.registerPublication(
+        {
+          title: "No affiliation",
+          type: "Article",
+          authors: [
+            {
+              researcherId: "RES-101",
+              authorName: "Internal Author",
+              authorOrder: 1,
+            },
+          ],
+        },
+        operator,
+      ),
+    "TC-BR-048",
+    "Every author has affiliationOrgUnitId or affiliationText",
   );
 
-  // Register valid publication
-  const res1 = service.registerPublication({
-    title:
-      "Quantum-Resistant Identity Verification Protocols in Higher Education",
-    type: "Article",
-    doi: "10.1016/j.ihepsrs.2026.09.999",
-    publicationDate: "2026-09-01",
-    venue: "IEEE Transactions on Information Security",
-    authors: [
-      {
-        researcherId: "RES-101",
-        authorName: "سمية خالد الأحمد",
-        authorOrder: 1,
-        correspondingAuthor: true,
-        affiliationText: "King Saud University",
-      },
-      {
-        authorName: "External Collaborator",
-        authorOrder: 2,
-        correspondingAuthor: false,
-        affiliationText: "MIT CSAIL",
-      },
-    ],
-  });
-
+  const created = service.registerPublication(
+    {
+      title: "Canonical DOI publication",
+      type: "Article",
+      doi: "10.1000/IHEPSRS.TEST.1",
+      authors: [
+        {
+          researcherId: "RES-101",
+          authorName: "Internal Author",
+          authorOrder: 1,
+          affiliationText: "University A",
+        },
+        {
+          authorName: "External Collaborator",
+          authorOrder: 2,
+          affiliationText: "External University",
+        },
+      ],
+    },
+    operator,
+  );
   assert(
-    !res1.isExistingCanonical && res1.publication.authors.length === 2,
+    created.publication.status === "SubmittedForValidation",
     "TC-FR-028",
-    "FR-028: Valid publication registered with 2 authors and canonical status",
+    "Presence of DOI submits identifier for validation instead of auto-marking Validated",
   );
-
-  assert(
-    res1.publication.authors[0].authorOrder === 1 &&
-      res1.publication.authors[1].authorOrder === 2,
-    "TC-BR-048",
-    "BR-048: Publication author ordering is preserved sequentially starting from 1",
+  const validated = service.recordIdentifierValidation(
+    created.publication.publicationId,
+    true,
+    operator,
   );
-
-  // -------------------------------------------------------------
-  // 2. TASK-PUB-002 & UC-12: DOI Uniqueness & Canonical Mapping (BR-025, UC-12)
-  // -------------------------------------------------------------
-
-  // Attempting to register the exact same DOI again (BR-025 / UC-12)
-  const res2 = service.registerPublication({
-    title: "Duplicate Title with Same DOI",
-    type: "Article",
-    doi: "10.1016/j.ihepsrs.2026.09.999", // Same DOI
-    authors: [
-      {
-        authorName: "Third Author Added Later",
-        authorOrder: 1,
-        affiliationText: "Stanford University",
-      },
-    ],
-  });
-
   assert(
-    res2.isExistingCanonical === true,
+    validated.status === "Validated",
     "TC-BR-025",
-    "BR-025 / UC-12: Registering publication with existing DOI returns canonical publication record",
+    "Canonical Publication becomes Validated only after validation operation",
+  );
+  expectThrow(
+    () => service.archivePublication(validated.publicationId, operator),
+    "TC-FR-028",
+    "Publication lifecycle rejects Validated -> Archived direct transition",
+  );
+  service.publishRecord(validated.publicationId, operator);
+
+  const duplicate = service.registerPublication(
+    {
+      title: "Same DOI alternate metadata",
+      type: "Article",
+      doi: "10.1000/ihepsrs.test.1",
+      authors: [
+        {
+          authorName: "Additional External Author",
+          authorOrder: 1,
+          affiliationText: "Another University",
+        },
+      ],
+    },
+    operator,
+  );
+  assert(
+    duplicate.isExistingCanonical && duplicate.publication.authors.length === 3,
+    "TC-BR-025",
+    "Duplicate normalized DOI reuses canonical Publication and appends non-duplicate author metadata",
+  );
+
+  const extCanonical = service.registerPublication(
+    {
+      title: "External identifier canonical",
+      type: "Conference",
+      externalPublicationId: "EXT-PUB-2026-44",
+      authors: [
+        {
+          researcherId: "RES-102",
+          authorName: "Researcher Two",
+          authorOrder: 1,
+          affiliationText: "University A",
+        },
+      ],
+    },
+    operator,
+  );
+  const extDuplicate = service.registerPublication(
+    {
+      title: "External identifier duplicate",
+      type: "Conference",
+      externalPublicationId: "ext-pub-2026-44",
+      authors: [
+        {
+          authorName: "External collaborator",
+          authorOrder: 1,
+          affiliationText: "External Institute",
+        },
+      ],
+    },
+    operator,
+  );
+  assert(
+    extDuplicate.isExistingCanonical &&
+      extDuplicate.publication.publicationId ===
+        extCanonical.publication.publicationId,
+    "TC-BR-025",
+    "ExternalPublicationId also resolves to one canonical Publication",
   );
 
   assert(
-    res2.publication.authors.length === 3,
-    "TC-UC-12",
-    "UC-12: Duplicate DOI submission connects new author/affiliation to canonical record without creating duplicate publication entity",
+    service.getAllPublications(otherInstitution).length === 0,
+    "TC-NFR-008-PUB",
+    "Publication reads are filtered by institution authorization scope",
   );
-
-  // Link external author to researcher (BR-048)
-  const externalAuthorId = res1.publication.authors[1].id;
-  const linkedPub = service.linkExternalAuthorToResearcher({
-    publicationId: res1.publication.publicationId,
-    authorId: externalAuthorId,
-    researcherId: "RES-102",
-  });
-
   assert(
-    linkedPub.authors[1].researcherId === "RES-102" &&
-      linkedPub.authors[1].linkedAt !== undefined,
-    "TC-BR-048",
-    "BR-048: External author linked to Researcher profile without modifying author order",
+    audit.verifyChain(),
+    "TC-NFR-014",
+    "Publication operations commit after validation and produce an intact audit chain",
   );
 
-  console.log("\nPhase 07 Publications tasks verification check passed.");
+  console.log(
+    "NOTE PUB-004 affiliation-history implementation and PUB-005 external-author linking remain owned by Maram; this correction intentionally does not expose the PUB-005 linking endpoint.",
+  );
+  console.log("\nCorrective Phase 07 publications verification passed.");
 }
 
 main();

@@ -47,10 +47,6 @@ export interface ResearcherProfile {
   institutionId: string;
   orcid?: string;
   specializationCode?: string;
-  academicTitle?: string;
-  department?: string;
-  scopusId?: string;
-  googleScholarId?: string;
   status: "Active" | "Inactive";
 }
 
@@ -68,7 +64,11 @@ export interface ExternalIdMappingRecord {
 export interface IdentityMergeDto {
   sourcePersonId: string;
   targetPersonId: string;
-  stewardUserId: string;
+  reason: string;
+}
+
+export interface IdentityUnmergeDto {
+  auditId: string;
   reason: string;
 }
 
@@ -118,8 +118,6 @@ export interface ProposalReviewRecord {
 export interface AssignReviewerDto {
   proposalId: string;
   reviewerId: string;
-  reviewerPersonId?: string;
-  reviewerInstitutionId?: string;
   hasDeclaredConflict?: boolean;
 }
 
@@ -143,17 +141,18 @@ export interface ResearchProjectRecord {
   status: ResearchProjectStatus;
 }
 
+export type AmendmentStatus =
+  "Submitted" | "UnderReview" | "Approved" | "Rejected" | "Applied";
+
 export interface AmendmentRequestRecord {
   amendmentId: string;
-  projectId: string;
-  requestedBy: string;
-  type: "LeaderChange" | "ScopeChange" | "Extension";
+  entityType: string;
+  entityId: string;
+  changeType: string;
+  requestedByUserId: string;
   reason: string;
-  newLeaderId?: string;
-  newEndDate?: string;
-  status: "Pending" | "Approved" | "Rejected";
-  createdAt: string;
-  decidedAt?: string;
+  status: AmendmentStatus;
+  decisionId?: string;
 }
 
 export interface ResearchOutputRecord {
@@ -182,6 +181,7 @@ export interface PublicationRecord {
   title: string;
   type: "Article" | "Conference" | "Book" | "Chapter" | "Patent" | "Other";
   doi?: string;
+  externalPublicationId?: string;
   publicationDate?: string;
   venue?: string;
   status: PublicationStatus;
@@ -206,6 +206,7 @@ export interface CreatePublicationDto {
   title: string;
   type: "Article" | "Conference" | "Book" | "Chapter" | "Patent" | "Other";
   doi?: string;
+  externalPublicationId?: string;
   publicationDate?: string;
   venue?: string;
   projectId?: string;

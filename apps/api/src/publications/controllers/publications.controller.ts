@@ -1,44 +1,88 @@
-import { Controller, Get, Post, Body, Param, Patch } from "@nestjs/common";
-import { PublicationService } from "../domain/publication.service";
-import { CreatePublicationDto, PublicationStatus } from "@ihepsrs/contracts";
+import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
+import type { CreatePublicationDto } from "@ihepsrs/contracts";
 
+import type { AuthorizationAwareRequest } from "../../identity/authorization/authorization.guard";
+import { AuthenticatedOnly } from "../../identity/authentication/route-access.decorator";
+import { PublicationService } from "../domain/publication.service";
+
+@AuthenticatedOnly()
 @Controller("publications")
 export class PublicationsController {
   constructor(private readonly publicationService: PublicationService) {}
 
   @Get()
-  getAllPublications() {
-    return this.publicationService.getAllPublications();
+  getAllPublications(@Req() request: AuthorizationAwareRequest) {
+    return this.publicationService.getAllPublications(
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":id")
-  getPublication(@Param("id") id: string) {
-    return this.publicationService.getPublication(id);
+  getPublication(
+    @Param("id") id: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.publicationService.getPublication(
+      id,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post()
-  registerPublication(@Body() dto: CreatePublicationDto) {
-    return this.publicationService.registerPublication(dto);
+  registerPublication(
+    @Body() dto: CreatePublicationDto,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.publicationService.registerPublication(
+      dto,
+      request.authorizationPrincipal!,
+    );
   }
 
-  @Patch(":id/status")
-  updateStatus(
+  @Post(":id/submit-validation")
+  submitValidation(
     @Param("id") id: string,
-    @Body() dto: { status: PublicationStatus },
+    @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.publicationService.updatePublicationStatus(id, dto.status);
+    return this.publicationService.submitForValidation(
+      id,
+      request.authorizationPrincipal!,
+    );
   }
 
-  @Post(":id/authors/:authorId/link")
-  linkExternalAuthor(
+  @Post(":id/validation")
+  recordValidation(
     @Param("id") id: string,
-    @Param("authorId") authorId: string,
-    @Body() dto: { researcherId: string },
+    @Body() dto: { valid: boolean; reason?: string },
+    @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.publicationService.linkExternalAuthorToResearcher({
-      publicationId: id,
-      authorId,
-      researcherId: dto.researcherId,
-    });
+    return this.publicationService.recordIdentifierValidation(
+      id,
+      dto.valid,
+      request.authorizationPrincipal!,
+      dto.reason,
+    );
+  }
+
+  @Post(":id/publish")
+  publishRecord(
+    @Param("id") id: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.publicationService.publishRecord(
+      id,
+      request.authorizationPrincipal!,
+    );
+  }
+
+  @Post(":id/archive")
+  archivePublication(
+    @Param("id") id: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.publicationService.archivePublication(
+      id,
+      request.authorizationPrincipal!,
+    );
   }
 }
