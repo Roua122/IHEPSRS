@@ -1,0 +1,39 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+vendor/
+.venv/
+venv/
+
+# Build
+dist/
+build/
+.next/
+coverage/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Runtime / logs
+*.log
+logs/
+tmp/
+temp/
+
+# Secrets / keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local DB / caches
+*.sqlite
+*.sqlite3
+.cache/

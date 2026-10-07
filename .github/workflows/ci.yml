@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+
+      - name: Install pnpm
+        run: npm install --global pnpm@12.8.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Quality gate
+        run: pnpm quality
+
+      - name: Configuration check
+        run: pnpm config:check
+
+      - name: IAM-001 model tests
+        run: pnpm --filter @ihepsrs/api iam001:check
+
+      - name: IAM-002 role catalogue tests
+        run: pnpm --filter @ihepsrs/api iam002:check
+
+      - name: IAM-003 scope authorization tests
+        run: pnpm --filter @ihepsrs/api iam003:check
+
+      - name: IAM-004 delegation model tests
+        run: pnpm --filter @ihepsrs/api iam004:check
+
+      - name: IAM-005 authentication and session tests
+        run: pnpm --filter @ihepsrs/api iam005:check
+
+      - name: Research domain checks
+        run: pnpm --filter @ihepsrs/api research:check
+
+      - name: Publications domain checks
+        run: pnpm --filter @ihepsrs/api publications:check
+
+      - name: Runtime smoke tests
+        run: pnpm test:smoke
