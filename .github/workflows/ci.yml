@@ -54,5 +54,11 @@ jobs:
       - name: Publications domain checks
         run: pnpm --filter @ihepsrs/api publications:check
 
+      - name: Institutions domain checks
+        run: pnpm --filter @ihepsrs/api institutions:check
+
+      - name: Accessibility verification
+        run: pnpm --filter @ihepsrs/web accessibility:check
+
       - name: Runtime smoke tests
         run: pnpm test:smoke

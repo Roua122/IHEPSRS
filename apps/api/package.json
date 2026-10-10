@@ -17,8 +17,9 @@
     "iam005:check": "pnpm build && node scripts/check-iam005.cjs",
     "research:check": "pnpm build && node scripts/check-research.cjs",
     "publications:check": "pnpm build && node scripts/check-publications.cjs",
-    "test": "pnpm iam001:check && pnpm iam002:check && pnpm iam003:check && pnpm iam004:check && pnpm iam005:check && pnpm research:check && pnpm publications:check",
-    "auth:generate-totp-secret": "node scripts/generate-totp-secret.cjs"
+    "test": "pnpm iam001:check && pnpm iam002:check && pnpm iam003:check && pnpm iam004:check && pnpm iam005:check && pnpm research:check && pnpm publications:check && pnpm institutions:check",
+    "auth:generate-totp-secret": "node scripts/generate-totp-secret.cjs",
+    "institutions:check": "pnpm build && node scripts/check-institutions.cjs"
   },
   "dependencies": {
     "@ihepsrs/contracts": "workspace:*",

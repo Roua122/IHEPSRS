@@ -50,8 +50,30 @@ function HomePage() {
 export function App() {
   return (
     <>
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: "fixed",
+          top: 8,
+          insetInlineStart: 8,
+          zIndex: 2000,
+          px: 2,
+          py: 1,
+          bgcolor: "background.paper",
+          color: "text.primary",
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 1,
+          transform: "translateY(-200%)",
+          "&:focus": { transform: "translateY(0)" },
+        }}
+      >
+        الانتقال إلى المحتوى الرئيسي
+      </Box>
+
       <AppBar position="static" color="default" elevation={1}>
-        <Toolbar>
+        <Toolbar component="nav" aria-label="التنقل الرئيسي">
           <Typography sx={{ flexGrow: 1, fontWeight: 700 }}>IHEPSRS</Typography>
 
           <Button component={Link} to="/" color="inherit">
@@ -69,12 +91,14 @@ export function App() {
         </Toolbar>
       </AppBar>
 
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/settings/users" element={<UsersPage />} />
-        <Route path="/settings/roles" element={<RolesPage />} />
-      </Routes>
+      <Box component="main" id="main-content" tabIndex={-1}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/settings/users" element={<UsersPage />} />
+          <Route path="/settings/roles" element={<RolesPage />} />
+        </Routes>
+      </Box>
     </>
   );
 }

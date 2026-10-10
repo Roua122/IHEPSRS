@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 
 import type {
+  AffiliationHistoryRecord,
   ExternalIdMappingRecord,
   IdentityMergeDto,
   IdentityMergeResult,
@@ -64,6 +65,7 @@ export class PersonIdentityService {
   >();
   private readonly verifiedOrcidOwners = new Map<string, string>();
   private readonly mergeAuditLogs: IdentityMergeAuditRecord[] = [];
+  private readonly affiliations = new Map<string, AffiliationHistoryRecord>();
 
   constructor() {
     this.seedInitialData();
@@ -150,6 +152,16 @@ export class PersonIdentityService {
       canonicalId: "P-102",
       effectiveFrom: "2024-06-01T00:00:00Z",
       status: "Active",
+    });
+
+    this.affiliations.set("AFF-101", {
+      affiliationId: "AFF-101",
+      personId: "P-101",
+      institutionId: "INST-001",
+      orgUnitId: "OU-CS",
+      roleRank: "Researcher",
+      effectiveFrom: "2025-01-01",
+      sourceSystem: "IHEPSRS_PROTOTYPE",
     });
   }
 
@@ -289,6 +301,82 @@ export class PersonIdentityService {
         );
       })
       .map((person) => this.maskSensitiveFields(person));
+  }
+
+  addResearcherAffiliation(
+    researcherId: string,
+    input: Omit<AffiliationHistoryRecord, "affiliationId" | "personId"> & {
+      affiliationId?: string;
+    },
+  ): AffiliationHistoryRecord {
+    const researcher = this.getResearcher(researcherId);
+    if (!input.institutionId?.trim() || !input.sourceSystem?.trim()) {
+      throw this.validation(
+        "FR-021: institutionId and sourceSystem are required for affiliation history",
+      );
+    }
+    const from = Date.parse(input.effectiveFrom);
+    const to = input.effectiveTo ? Date.parse(input.effectiveTo) : undefined;
+    if (
+      !Number.isFinite(from) ||
+      (to !== undefined && (!Number.isFinite(to) || to <= from))
+    ) {
+      throw this.validation(
+        "Affiliation effectiveTo must be later than effectiveFrom",
+      );
+    }
+    const affiliationId = input.affiliationId?.trim() || randomUUID();
+    if (this.affiliations.has(affiliationId)) {
+      throw new AppException({
+        code: ErrorCode.Conflict,
+        status: HttpStatus.CONFLICT,
+        message: `Affiliation ${affiliationId} already exists`,
+      });
+    }
+    const record: AffiliationHistoryRecord = {
+      affiliationId,
+      personId: researcher.personId,
+      institutionId: input.institutionId.trim(),
+      orgUnitId: input.orgUnitId?.trim() || undefined,
+      roleRank: input.roleRank?.trim() || undefined,
+      effectiveFrom: input.effectiveFrom,
+      effectiveTo: input.effectiveTo,
+      sourceSystem: input.sourceSystem.trim(),
+    };
+    this.affiliations.set(affiliationId, record);
+    writeStructuredLog({
+      level: "info",
+      event: "researcher.affiliation.recorded",
+      researcherId,
+      affiliationId,
+      institutionId: record.institutionId,
+    });
+    return { ...record };
+  }
+
+  listResearcherAffiliations(researcherId: string): AffiliationHistoryRecord[] {
+    const researcher = this.getResearcher(researcherId);
+    return [...this.affiliations.values()]
+      .filter((record) => record.personId === researcher.personId)
+      .sort((a, b) => Date.parse(a.effectiveFrom) - Date.parse(b.effectiveFrom))
+      .map((record) => ({ ...record }));
+  }
+
+  hasAffiliationAt(
+    researcherId: string,
+    orgUnitId: string,
+    at: string,
+  ): boolean {
+    const eventTime = Date.parse(at);
+    if (!Number.isFinite(eventTime)) return false;
+    return this.listResearcherAffiliations(researcherId).some((record) => {
+      if (record.orgUnitId !== orgUnitId) return false;
+      const from = Date.parse(record.effectiveFrom);
+      const to = record.effectiveTo
+        ? Date.parse(record.effectiveTo)
+        : undefined;
+      return eventTime >= from && (to === undefined || eventTime < to);
+    });
   }
 
   mergePersonIdentities(

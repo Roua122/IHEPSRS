@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 
-import { getCorrelationId } from "../../common/observability/correlation-context";
+import { getCorrelationId } from "../observability/correlation-context";
 
-export interface ResearchAuditEntry {
+export interface PrototypeAuditEntry {
   auditId: string;
   occurredAt: string;
   actorUserId: string;
@@ -16,9 +16,15 @@ export interface ResearchAuditEntry {
   metadata?: Readonly<Record<string, string | number | boolean | null>>;
 }
 
+/**
+ * Shared academic-prototype audit chain.
+ *
+ * This is intentionally in-memory and tamper-evident, not a production WORM
+ * audit repository. Durable audit persistence remains deployment work.
+ */
 @Injectable()
-export class ResearchAuditService {
-  private readonly entries: ResearchAuditEntry[] = [];
+export class PrototypeAuditService {
+  private readonly entries: PrototypeAuditEntry[] = [];
 
   append(input: {
     actorUserId: string;
@@ -26,7 +32,7 @@ export class ResearchAuditService {
     entityType: string;
     entityId: string;
     metadata?: Record<string, string | number | boolean | null>;
-  }): ResearchAuditEntry {
+  }): PrototypeAuditEntry {
     const previousHash = this.entries.at(-1)?.entryHash ?? null;
     const base = {
       auditId: randomUUID(),
@@ -42,19 +48,27 @@ export class ResearchAuditService {
     const entryHash = createHash("sha256")
       .update(JSON.stringify(base))
       .digest("hex");
-    const entry: ResearchAuditEntry = { ...base, entryHash };
+    const entry: PrototypeAuditEntry = { ...base, entryHash };
     this.entries.push(entry);
-    return {
-      ...entry,
-      metadata: entry.metadata ? { ...entry.metadata } : undefined,
-    };
+    return this.clone(entry);
   }
 
-  list(): readonly ResearchAuditEntry[] {
-    return this.entries.map((entry) => ({
-      ...entry,
-      metadata: entry.metadata ? { ...entry.metadata } : undefined,
-    }));
+  list(): readonly PrototypeAuditEntry[] {
+    return this.entries.map((entry) => this.clone(entry));
+  }
+
+  verifyChain(): boolean {
+    let previousHash: string | null = null;
+    for (const entry of this.entries) {
+      if (entry.previousHash !== previousHash) return false;
+      const { entryHash, ...base } = entry;
+      const expected = createHash("sha256")
+        .update(JSON.stringify(base))
+        .digest("hex");
+      if (entryHash !== expected) return false;
+      previousHash = entryHash;
+    }
+    return true;
   }
 
   snapshotLength(): number {
@@ -72,17 +86,10 @@ export class ResearchAuditService {
     this.entries.splice(length);
   }
 
-  verifyChain(): boolean {
-    let previousHash: string | null = null;
-    for (const entry of this.entries) {
-      if (entry.previousHash !== previousHash) return false;
-      const { entryHash, ...base } = entry;
-      const expected = createHash("sha256")
-        .update(JSON.stringify(base))
-        .digest("hex");
-      if (entryHash !== expected) return false;
-      previousHash = entryHash;
-    }
-    return true;
+  private clone(entry: PrototypeAuditEntry): PrototypeAuditEntry {
+    return {
+      ...entry,
+      metadata: entry.metadata ? { ...entry.metadata } : undefined,
+    };
   }
 }

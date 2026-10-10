@@ -165,6 +165,17 @@ export interface ResearchOutputRecord {
   completedAt?: string;
 }
 
+export interface AffiliationHistoryRecord {
+  affiliationId: string;
+  personId: string;
+  institutionId: string;
+  orgUnitId?: string;
+  roleRank?: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  sourceSystem: string;
+}
+
 // ==========================================
 // Phase 07 — Publications Contracts
 // ==========================================

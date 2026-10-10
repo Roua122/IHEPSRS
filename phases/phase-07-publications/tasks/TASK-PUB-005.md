@@ -50,3 +50,6 @@ Owner: مرام وديع
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+## Implementation progress — 2026-10-10
+Implementation completed in the Member-02 completion package and covered by the combined source-linked `publications:check`. Status remains TODO until `pnpm quality`, regression checks, smoke, GitHub CI, and review are green on the target branch; then it may be changed to DONE. See `docs/47_publication_affiliation_external_linking.md` and `MEMBER_02_IMPLEMENTATION_REPORT_AR.md`.
