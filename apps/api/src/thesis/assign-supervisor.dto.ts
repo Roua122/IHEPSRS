@@ -1,13 +1,68 @@
-//ملف تعريف البيانات المدخلة عند تعيين المشرف (مثل معرف الرسالة، معرف المشرف، نوع الإشراف رئيسي أم مشارك، وسبب التعديل إن وجد).
-export enum SupervisorRole {
-  MAIN = 'MAIN',
-  CO_SUPERVISOR = 'CO_SUPERVISOR',
-}
+import {
+  IsDateString,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
+
+import type { ThesisSupervisorRole } from "@ihepsrs/contracts";
 
 export class AssignSupervisorDto {
-  thesisId!: string;
-  supervisorUserId!: string;
-  role!: SupervisorRole;
+  @IsString()
+  @IsNotEmpty()
+  researcherId!: string;
+
+  @IsIn(["MAIN", "CO_SUPERVISOR"])
+  role!: ThesisSupervisorRole;
+
+  @IsDateString()
+  startDate!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
   changeReason?: string;
-  approvedByUserId?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  approvedByUserId!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  approvalDecisionId?: string;
+}
+
+export class EndSupervisorAssignmentDto {
+  @IsDateString()
+  endDate!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  changeReason!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  approvedByUserId!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  approvalDecisionId?: string;
+}
+
+export class CheckSupervisorEligibilityDto {
+  @IsString()
+  @IsNotEmpty()
+  researcherId!: string;
+
+  @IsIn(["MAIN", "CO_SUPERVISOR"])
+  role!: ThesisSupervisorRole;
+
+  @IsDateString()
+  startDate!: string;
 }

@@ -1,14 +1,72 @@
-//ملف الـ API Endpoint الذي يستقبل الطلبات ويطبق حماية الأمان والـ Scope المعتمدة في IAM003.
-import { Controller, Post, Body } from '@nestjs/common';
-import { ThesisSupervisorService } from './thesis-supervisor.service';
-import { AssignSupervisorDto } from './assign-supervisor.dto';
+import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
 
-@Controller('thesis/supervisors')
+import { AuthenticatedOnly } from "../identity/authentication/route-access.decorator";
+import type { AuthorizationAwareRequest } from "../identity/authorization/authorization.guard";
+import type { AuthorizationPrincipal } from "../identity/authorization/authorization.types";
+import {
+  AssignSupervisorDto,
+  CheckSupervisorEligibilityDto,
+  EndSupervisorAssignmentDto,
+} from "./assign-supervisor.dto";
+import { ThesisSupervisorService } from "./thesis-supervisor.service";
+
+function principalOf(
+  request: AuthorizationAwareRequest,
+): AuthorizationPrincipal {
+  return request.authorizationPrincipal!;
+}
+
+@AuthenticatedOnly()
+@Controller("thesis")
 export class ThesisSupervisorController {
-  constructor(private readonly supervisorService: ThesisSupervisorService) {}
+  constructor(private readonly service: ThesisSupervisorService) {}
 
-  @Post('assign')
-  async assignSupervisor(@Body() dto: AssignSupervisorDto) {
-    return this.supervisorService.assignSupervisor(dto);
+  @Get(":thesisId/supervisors")
+  list(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.service.listAssignments(thesisId, principalOf(request));
+  }
+
+  @Post(":thesisId/supervisors/eligibility")
+  eligibility(
+    @Param("thesisId") thesisId: string,
+    @Body() dto: CheckSupervisorEligibilityDto,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.service.checkEligibility(thesisId, dto, principalOf(request));
+  }
+
+  @Post(":thesisId/supervisors/assign")
+  assign(
+    @Param("thesisId") thesisId: string,
+    @Body() dto: AssignSupervisorDto,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.service.assignSupervisor(thesisId, dto, principalOf(request));
+  }
+
+  @Post(":thesisId/supervisors/:assignmentId/end")
+  end(
+    @Param("thesisId") thesisId: string,
+    @Param("assignmentId") assignmentId: string,
+    @Body() dto: EndSupervisorAssignmentDto,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.service.endAssignment(
+      thesisId,
+      assignmentId,
+      dto,
+      principalOf(request),
+    );
+  }
+
+  @Get(":thesisId/supervision-readiness")
+  readiness(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.service.getSupervisionReadiness(thesisId, principalOf(request));
   }
 }
