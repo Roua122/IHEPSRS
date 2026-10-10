@@ -153,6 +153,96 @@ export class PersonIdentityService {
     });
   }
 
+  /**
+   * TASK-PG-001 / FR-041: an applicant can exist before any SIS Student record.
+   * The personId is supplied by the already-authenticated IAM principal; no
+   * untrusted caller may choose the account/person relationship at this layer.
+   */
+  registerApplicantPerson(input: {
+    personId: string;
+    fullNameAr?: string;
+    fullNameEn?: string;
+    email?: string;
+    birthDate?: string;
+  }): PersonRecord {
+    const personId = input.personId?.trim();
+    const fullNameAr = input.fullNameAr?.trim();
+    const fullNameEn = input.fullNameEn?.trim();
+    const email = input.email?.trim();
+    if (!personId || (!fullNameAr && !fullNameEn)) {
+      throw this.validation("FR-041: personId and a full name are required");
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw this.validation("FR-041: invalid email format");
+    }
+    if (input.birthDate) {
+      const birthDate = input.birthDate;
+      const date = new Date(`${birthDate}T00:00:00.000Z`);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) ||
+        Number.isNaN(date.getTime()) ||
+        date.toISOString().slice(0, 10) !== birthDate
+      ) {
+        throw this.validation(
+          "FR-041: birthDate must be a valid YYYY-MM-DD date",
+        );
+      }
+    }
+    if (this.persons.has(personId)) {
+      // Existing Person is authoritative: never overwrite Research/SIS identity
+      // attributes through an applicant-registration endpoint (BR-005/BR-055).
+      const current = this.persons.get(personId)!;
+      if (current.status !== "Active") {
+        throw this.validation("FR-042: merged/archived Person cannot register");
+      }
+      return this.maskSensitiveFields(current);
+    }
+    const record: PersonRecord = {
+      personId,
+      fullNameAr,
+      fullNameEn,
+      email,
+      birthDate: input.birthDate,
+      status: "Active",
+    };
+    this.persons.set(personId, record);
+    writeStructuredLog({
+      level: "info",
+      event: "person.applicant.registered",
+      personId,
+      sourceId: "FR-041",
+    });
+    return this.maskSensitiveFields(record);
+  }
+
+  /**
+   * BR-055: lookups by a historical Person reference resolve through approved
+   * (not subsequently unmerged) DS merge history; evidence-only matches never
+   * perform an automatic merge.
+   */
+  resolveCanonicalPersonId(personId: string): string {
+    let currentId = personId;
+    const visited = new Set<string>();
+    while (true) {
+      if (visited.has(currentId)) {
+        throw this.validation("FR-042: person merge mapping contains a cycle");
+      }
+      visited.add(currentId);
+      const lastMerge = [...this.mergeAuditLogs]
+        .reverse()
+        .find(
+          (entry) => entry.sourcePersonId === currentId && !entry.reversedAt,
+        );
+      if (!lastMerge) break;
+      currentId = lastMerge.targetPersonId;
+    }
+    const person = this.persons.get(currentId);
+    if (!person || person.status !== "Active") {
+      throw this.notFound(`Active Person ${currentId} not found`);
+    }
+    return currentId;
+  }
+
   createOrUpdateResearcher(
     profile: Partial<ResearcherProfile> & {
       personId: string;
