@@ -50,3 +50,6 @@ Owner: مرام وديع
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+## Implementation progress — 2026-10-10
+Implementation completed in the Member-02 completion package with canonical master-data models, IAM-003 authorization/scope, source-linked verification, audit/correlation, effective dating/version history, and prototype atomic rollback. Status remains TODO until the team runs `pnpm quality`, task checks, smoke, and GitHub CI on the target branch; after green review/merge it may be changed to DONE. See `docs/46_institution_master_data_implementation.md`, `architecture/decisions/ADR-015-institution-master-data-prototype-boundary.md`, and `MEMBER_02_IMPLEMENTATION_REPORT_AR.md`.

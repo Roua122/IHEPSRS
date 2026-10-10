@@ -64,6 +64,41 @@ export class ResearchersController {
     return this.identityService.createOrUpdateResearcher(body);
   }
 
+  @Get("researchers/:id/affiliations")
+  getResearcherAffiliations(
+    @Param("id") id: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    const researcher = this.identityService.getResearcher(id);
+    this.authorization.assertResearchOperation(
+      principalOf(request),
+      researcher.institutionId,
+    );
+    return this.identityService.listResearcherAffiliations(id);
+  }
+
+  @Post("researchers/:id/affiliations")
+  addResearcherAffiliation(
+    @Param("id") id: string,
+    @Body()
+    body: {
+      affiliationId?: string;
+      institutionId: string;
+      orgUnitId?: string;
+      roleRank?: string;
+      effectiveFrom: string;
+      effectiveTo?: string;
+      sourceSystem: string;
+    },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    this.authorization.assertResearchOperation(
+      principalOf(request),
+      body.institutionId,
+    );
+    return this.identityService.addResearcherAffiliation(id, body);
+  }
+
   @Post("researchers/:id/orcid/verify")
   verifyOrcid(
     @Param("id") id: string,

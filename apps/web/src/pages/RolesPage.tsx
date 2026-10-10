@@ -124,7 +124,7 @@ export function RolesPage() {
               </Alert>
             ) : (
               <Paper variant="outlined" sx={{ p: 2, overflowX: "auto" }}>
-                <Table size="small">
+                <Table size="small" aria-label="كتالوج الأدوار المعتمدة">
                   <TableHead>
                     <TableRow>
                       <TableCell>الرمز</TableCell>
@@ -159,7 +159,10 @@ export function RolesPage() {
               <Typography variant="h6" sx={{ mb: 2 }}>
                 صفوف المصدر التي تحتاج roleCode معتمد
               </Typography>
-              <Table size="small">
+              <Table
+                size="small"
+                aria-label="صفوف الأدوار غير المرمزة في المصدر"
+              >
                 <TableHead>
                   <TableRow>
                     <TableCell>الدور/Actor</TableCell>
