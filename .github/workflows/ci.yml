@@ -57,6 +57,9 @@ jobs:
       - name: Institutions domain checks
         run: pnpm --filter @ihepsrs/api institutions:check
 
+      - name: Thesis supervisor checks
+        run: pnpm --filter @ihepsrs/api thesis:check
+
       - name: Accessibility verification
         run: pnpm --filter @ihepsrs/web accessibility:check
 

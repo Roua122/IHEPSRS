@@ -40,6 +40,12 @@ Owner: دعاء عبد الواحد
 - أضف Integration/Unit/UI tests اللازمة للمهمة مع الاحتفاظ بمعرف المصدر في اسم/metadata الاختبار.
 - تحقق من `docs/25_prototype_acceptance.md` إذا كانت المهمة `MUST`.
 
+## Implementation Note
+
+- Corrective implementation prepared for review: canonical assignment history, BR-011 readiness hook, BR-043 MAIN constraints, BR-044 workload/PolicyConfiguration, IAM scope, audit, atomic rollback, and source-linked verification are implemented.
+- `Status` remains `TODO` until local quality checks and GitHub CI are green and the PR is reviewed/merged.
+- TH-001/TH-003 remain responsible for calling the BR-011 readiness hook during the canonical Thesis state transition.
+
 ## Definition of Done
 - [ ] Implemented according to `Implementation` classification.
 - [ ] Source IDs referenced in code/tests/PR where relevant.
