@@ -20,6 +20,7 @@ export interface DataScopeClaim extends DataScopeTarget {
 
 export interface AuthorizationPrincipal {
   userId: string;
+  personId?: string;
   authenticated: true;
   roleAssignments: readonly AuthorizationRoleAssignment[];
   dataScopes?: readonly DataScopeClaim[];

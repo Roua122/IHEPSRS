@@ -109,6 +109,7 @@ export class PrototypeLocalIdentityService {
       sessionProfile: this.options.sessionProfile,
       principal: {
         userId: this.options.userId,
+        personId: this.options.personId,
         authenticated: true,
         roleAssignments: [
           {

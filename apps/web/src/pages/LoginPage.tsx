@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Alert,
   Button,
@@ -34,6 +34,11 @@ export function LoginPage() {
   const [result, setResult] = useState<LoginResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (error || result) feedbackRef.current?.focus();
+  }, [error, result]);
 
   async function login(event: FormEvent) {
     event.preventDefault();
@@ -90,9 +95,25 @@ export function LoginPage() {
             fallback عندما لا يتوفر SSO موثوق، وتتطلب MFA.
           </Typography>
 
-          {error ? <Alert severity="error">{error}</Alert> : null}
+          {error ? (
+            <Alert
+              severity="error"
+              role="alert"
+              aria-live="assertive"
+              tabIndex={-1}
+              ref={feedbackRef}
+            >
+              {error}
+            </Alert>
+          ) : null}
           {result ? (
-            <Alert severity="success">
+            <Alert
+              severity="success"
+              role="status"
+              aria-live="polite"
+              tabIndex={-1}
+              ref={feedbackRef}
+            >
               تم تسجيل الدخول. المستخدم: {result.session.principal.userId} —
               الدور:{" "}
               {result.session.principal.roleAssignments

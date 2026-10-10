@@ -131,7 +131,7 @@ export function UsersPage() {
                 انتقالات الحالة
               </Typography>
 
-              <Table size="small">
+              <Table size="small" aria-label="جدول انتقالات حالة حساب المستخدم">
                 <TableHead>
                   <TableRow>
                     <TableCell>الحالة الحالية</TableCell>

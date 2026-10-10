@@ -8,7 +8,8 @@
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test": "echo \"Frontend tests are added in TASK-FND-005\""
+    "test": "pnpm accessibility:check",
+    "accessibility:check": "node scripts/check-accessibility.cjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
