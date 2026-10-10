@@ -49,17 +49,30 @@ export interface SyncedStudentRecord {
   sourceVersion?: string;
 }
 
+/** BR-057: target is an explicit validated DocumentLink, not a polymorphic ownerId. */
 export interface ApplicationDocumentLink {
   documentLinkId: string;
   documentId: string;
+  targetType: "PostgraduateApplication";
+  targetId: string;
   purpose: string;
+  versionNo: number;
+  isActive: boolean;
   linkedAt: string;
   linkedByUserId: string;
 }
 
+export type ApplicationEditableField = "programId" | "admissionCycleId";
+
+/** Immutable evidence of exactly what the applicant submitted (BR-041). */
 export interface ApplicationSubmissionSnapshot {
   snapshotId: string;
   submittedAt: string;
+  personId: string;
+  programId: string;
+  admissionCycleId: string;
+  programVersionNo: number;
+  requiredDocumentPurposes: readonly string[];
   attachedDocuments: readonly ApplicationDocumentLink[];
   iteration: number;
 }
@@ -103,6 +116,7 @@ export interface PostgraduateApplication {
   needMoreInfoAt?: string;
   needMoreInfoIntervals: { from: string; to: string }[];
   requestedDocumentPurposes: string[];
+  requestedFields: ApplicationEditableField[];
   reviewAssignedToUserId?: string;
   decision?: AdmissionDecision;
 }
