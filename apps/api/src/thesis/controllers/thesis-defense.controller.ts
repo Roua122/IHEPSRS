@@ -13,6 +13,20 @@ import type {
 export class ThesisDefenseController {
   constructor(private readonly defense: ThesisDefenseService) {}
 
+  @Post("committee-member-attestations")
+  attestMember(
+    @Param("thesisId") id: string,
+    @Body()
+    body: {
+      member: DefenseCommitteeMember;
+      conflictDeclared: boolean;
+      reason: string;
+    },
+    @Req() req: AuthorizationAwareRequest,
+  ) {
+    return this.defense.attestMember(id, body, req.authorizationPrincipal!);
+  }
+
   @Post("committees")
   propose(
     @Param("thesisId") id: string,

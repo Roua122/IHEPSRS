@@ -29,3 +29,22 @@ Source IDs: FR-003, FR-037, BR-027, BR-028, BR-060, NFR-008–011, NFR-025–034
 ## Acceptance restriction
 
 Hash-chain tests are not production WORM proof. Map-backed academic records are not a durable transactional store and do not provide encryption-at-rest, multi-instance safety, 7-year retention or real SIEM integration. The prototype must not be called production hardened. Close HRD001 only after an independent security review and recorded verification of required deployment-level controls.
+
+## New executable controls (2026-10-11 increment)
+
+- `check-defense-eligibility.cjs` asserts PGA scope, canonical Researcher status/institution, signed institutional eligibility, no known Research conflict, and rejects identifier/role/Thesis replay. 23 cases together with read-audit verification.
+- Defense committee, session and correction read operations now append event names and actor identity to the academic hash-chain before exposing records; sensitive evidence text is not included in those audit entries.
+- `.github/workflows/security-scans.yml` adds **CodeQL JS/TS SAST** and `pnpm audit --audit-level high` on pull requests, pushes to main and weekly scans. **A configured workflow file is not evidence of a passing remote scan**; capture run URLs and address findings before release.
+
+## Required third-party/deployment artifacts to close HRD001
+
+| Source | Required objective proof (not available in this repo) |
+| --- | --- |
+| NFR-008/009/030 | HTTPS 1.2+ test, MFA/SSO actual deployment, revocation and idle-timeout acceptance |
+| BR-060/NFR-032 | Authenticated integration service scope/replay/security-event E2E; external integration team's connector |
+| NFR-010/027 | KMS/Secrets Manager configuration, owner, 90-day credential rotation and revocation evidence |
+| NFR-011/025/026 | Immutable audit retention, sensitive-read E2E, encrypted database/object/backups, separated keys |
+| NFR-028/029 | DAST/penetration report, file magic/size/checksum, scanner/quarantine and unsafe download block |
+| NFR-033/034/036 | Incident drill, CodeQL+dependency scan runs, authorized penetration test, live latency/error/queue metrics |
+
+Status remains **PARTIAL** until links/evidence for the above controls are reviewed and signed by the security owner. No amount of passing in-memory unit checks attests production encryption or SIEM controls.
