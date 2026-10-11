@@ -74,6 +74,20 @@ export class EnrollmentLifecycleService {
     private readonly degreeReadiness: DegreeReadinessGateway,
   ) {}
 
+  /**
+   * Internal server-side integration read.
+   * Not exposed through a controller.
+   */
+  getForIntegration(id: string): EnrollmentRecord {
+    const current = this.enrollments.get(id);
+
+    if (!current) {
+      throw this.notFound("FR-013: enrollment not found");
+    }
+
+    return copyEnrollment(current);
+  }
+
   create(
     input: CreateEnrollmentInput,
     principal: AuthorizationPrincipal,

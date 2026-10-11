@@ -95,6 +95,7 @@ export class ThesisSupervisorService {
     thesisId: string,
     dto: AssignSupervisorDto,
     principal: AuthorizationPrincipal,
+    afterAssigned?: (assignment: ThesisSupervisorAssignmentRecord) => void,
   ): ThesisSupervisorAssignmentRecord {
     const context = this.contexts.get(thesisId);
     this.authorization.assertApprove(principal, context.institutionId);
@@ -163,7 +164,15 @@ export class ThesisSupervisorService {
           policyVersionNo: eligibility.policyVersionNo ?? null,
         },
       });
-      return { ...assignment };
+
+      const result = { ...assignment };
+
+      // Keep the TH-001 state transition inside the TH-002 prototype
+      // transaction boundary. If the hook fails, TH-002 rolls back its
+      // assignment, policy snapshot, and audit append.
+      afterAssigned?.(result);
+
+      return result;
     });
   }
 
@@ -249,6 +258,72 @@ export class ThesisSupervisorService {
   ): AssignmentPolicySnapshot | undefined {
     const snapshot = this.policySnapshots.get(assignmentId);
     return snapshot ? { ...snapshot } : undefined;
+  }
+  /**
+   * Internal TH001/TH003/TH004 integration query.
+   * Does not expose a new HTTP operation.
+   */
+  getActiveMainAssignmentForIntegration(
+    thesisId: string,
+    asOf = new Date().toISOString().slice(0, 10),
+  ): ThesisSupervisorAssignmentRecord {
+    this.contexts.get(thesisId);
+
+    const date = this.dateOnly(asOf);
+    const activeMain = this.mainAssignments(thesisId).filter((assignment) =>
+      this.assignmentActiveAt(assignment, date),
+    );
+
+    if (activeMain.length !== 1) {
+      throw this.conflict(
+        "BR-011/BR-043: exactly one approved active MAIN supervisor is required",
+      );
+    }
+
+    return { ...activeMain[0] };
+  }
+
+  /**
+   * Internal assigned-supervisor identity verification.
+   * Identity comes from the authenticated principal, never request-body data.
+   */
+  assertAssignedMainSupervisorForIntegration(
+    thesisId: string,
+    principal: AuthorizationPrincipal,
+    asOf = new Date().toISOString().slice(0, 10),
+  ): ThesisSupervisorAssignmentRecord {
+    if (!principal?.personId?.trim()) {
+      throw new AppException({
+        code: ErrorCode.Forbidden,
+        status: HttpStatus.FORBIDDEN,
+        message: "Assigned Main Supervisor identity is required",
+      });
+    }
+
+    const assignment = this.getActiveMainAssignmentForIntegration(
+      thesisId,
+      asOf,
+    );
+
+    const researcher = this.people.getResearcher(assignment.researcherId);
+
+    const supervisorPersonId = this.people.resolveCanonicalPersonId(
+      researcher.personId,
+    );
+    const principalPersonId = this.people.resolveCanonicalPersonId(
+      principal.personId.trim(),
+    );
+
+    if (supervisorPersonId !== principalPersonId) {
+      throw new AppException({
+        code: ErrorCode.Forbidden,
+        status: HttpStatus.FORBIDDEN,
+        message:
+          "Authenticated person is not the assigned active Main Supervisor",
+      });
+    }
+
+    return assignment;
   }
 
   verifyAuditChain(): boolean {

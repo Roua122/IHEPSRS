@@ -15,10 +15,8 @@ import {
   ThesisSubmissionRequirementsGateway,
   UnavailableThesisSubmissionRequirementsGateway,
 } from "./domain/thesis-submission-requirements.gateway";
-import {
-  ThesisSupervisorGateway,
-  UnavailableThesisSupervisorGateway,
-} from "./domain/thesis-supervisor.gateway";
+import { ThesisSupervisorGateway } from "./domain/thesis-supervisor.gateway";
+import { IntegratedThesisSupervisorGateway } from "./domain/thesis-supervisor.integration.gateway";
 import { ThesisAuthorizationService } from "./thesis-authorization.service";
 import { ThesisSupervisionContextService } from "./thesis-supervision-context.service";
 import { ThesisSupervisorController } from "./thesis-supervisor.controller";
@@ -48,7 +46,7 @@ import { ThesisSupervisorService } from "./thesis-supervisor.service";
     },
     {
       provide: ThesisSupervisorGateway,
-      useClass: UnavailableThesisSupervisorGateway,
+      useClass: IntegratedThesisSupervisorGateway,
     },
     {
       provide: ThesisSubmissionRequirementsGateway,

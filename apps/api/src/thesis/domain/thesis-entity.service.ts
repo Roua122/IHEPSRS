@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-
+import { ThesisSupervisionContextService } from "../thesis-supervision-context.service";
 import { AppException } from "../../common/errors/app-exception";
 import { ErrorCode } from "../../common/errors/error-code";
 import type { AuthorizationPrincipal } from "../../identity/authorization/authorization.types";
@@ -74,6 +74,7 @@ export class ThesisEntityService {
     private readonly documents: ThesisDocumentGateway,
     private readonly supervisors: ThesisSupervisorGateway,
     private readonly submissionRequirements: ThesisSubmissionRequirementsGateway,
+    private readonly supervisionContexts: ThesisSupervisionContextService,
   ) {}
 
   /** UC-07 / BR-010: the parent Enrollment must already be Active. */
@@ -131,7 +132,6 @@ export class ThesisEntityService {
     });
     return { ...record };
   }
-
   /** Only the Draft -> Registered operation is owned by TH001. */
   register(thesisId: string, principal: AuthorizationPrincipal): ThesisRecord {
     const current = this.scoped(thesisId, principal);
@@ -139,20 +139,95 @@ export class ThesisEntityService {
       current.record.enrollmentId,
       principal,
     );
+
     this.assertWriter(principal, enrollment);
     this.assertActiveEnrollment(enrollment);
     this.assertTransition(current.record.status, "Registered");
-    const next: ThesisRecord = { ...current.record, status: "Registered" };
+
+    const next: ThesisRecord = {
+      ...current.record,
+      status: "Registered",
+    };
+
+    const contextSnapshot = this.supervisionContexts.snapshot();
+
+    try {
+      this.supervisionContexts.register({
+        thesisId,
+        institutionId: enrollment.institutionId,
+        programId: enrollment.programId,
+        studentPersonId: enrollment.personId,
+      });
+
+      this.audit.transition({
+        entityType: "Thesis",
+        entityId: thesisId,
+        fromStatus: current.record.status,
+        toStatus: next.status,
+        actorUserId: principal.userId,
+        sourceId: "FR-016/BR-010/FR-045",
+        reasonCode: "ThesisRegistered",
+      });
+
+      this.theses.set(thesisId, {
+        ...current,
+        record: next,
+      });
+
+      return { ...next };
+    } catch (error) {
+      this.supervisionContexts.restore(contextSnapshot);
+      throw error;
+    }
+  } /**
+   * TH-002 integration hook.
+   * Initial MAIN assignment advances Registered -> SupervisorAssigned.
+   * Later approved supervisor replacements must not rewind Thesis state.
+   */
+  recordMainSupervisorAssigned(
+    thesisId: string,
+    principal: AuthorizationPrincipal,
+  ): ThesisRecord {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(
+      current.record.enrollmentId,
+      principal,
+    );
+
+    this.assertActiveEnrollment(enrollment);
+
+    if (current.record.status === "Draft") {
+      throw this.conflict(
+        "FR-014/BR-011: Thesis must be Registered before MAIN supervisor assignment",
+      );
+    }
+
+    if (current.record.status !== "Registered") {
+      return { ...current.record };
+    }
+
+    this.assertTransition(current.record.status, "SupervisorAssigned");
+
+    const next: ThesisRecord = {
+      ...current.record,
+      status: "SupervisorAssigned",
+    };
+
     this.audit.transition({
       entityType: "Thesis",
       entityId: thesisId,
       fromStatus: current.record.status,
       toStatus: next.status,
       actorUserId: principal.userId,
-      sourceId: "FR-016/BR-010/FR-045",
-      reasonCode: "ThesisRegistered",
+      sourceId: "FR-014/BR-011/UC-06",
+      reasonCode: "MainSupervisorAssigned",
     });
-    this.theses.set(thesisId, { ...current, record: next });
+
+    this.theses.set(thesisId, {
+      ...current,
+      record: next,
+    });
+
     return { ...next };
   }
 

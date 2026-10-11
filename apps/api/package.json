@@ -20,7 +20,7 @@
     "test": "pnpm iam001:check && pnpm iam002:check && pnpm iam003:check && pnpm iam004:check && pnpm iam005:check && pnpm research:check && pnpm publications:check && pnpm institutions:check && pnpm thesis:check",
     "auth:generate-totp-secret": "node scripts/generate-totp-secret.cjs",
     "institutions:check": "pnpm build && node scripts/check-institutions.cjs",
-    "thesis:check": "pnpm build && node scripts/check-thesis.cjs"
+    "thesis:check": "pnpm build && node scripts/check-thesis.cjs && node scripts/check-thesis-integration.cjs"
   },
   "dependencies": {
     "@ihepsrs/contracts": "workspace:*",

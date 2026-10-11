@@ -8,6 +8,7 @@ import {
   CheckSupervisorEligibilityDto,
   EndSupervisorAssignmentDto,
 } from "./assign-supervisor.dto";
+import { ThesisEntityService } from "./domain/thesis-entity.service";
 import { ThesisSupervisorService } from "./thesis-supervisor.service";
 
 function principalOf(
@@ -19,7 +20,10 @@ function principalOf(
 @AuthenticatedOnly()
 @Controller("thesis")
 export class ThesisSupervisorController {
-  constructor(private readonly service: ThesisSupervisorService) {}
+  constructor(
+    private readonly service: ThesisSupervisorService,
+    private readonly theses: ThesisEntityService,
+  ) {}
 
   @Get(":thesisId/supervisors")
   list(
@@ -44,7 +48,18 @@ export class ThesisSupervisorController {
     @Body() dto: AssignSupervisorDto,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.service.assignSupervisor(thesisId, dto, principalOf(request));
+    const principal = principalOf(request);
+
+    return this.service.assignSupervisor(
+      thesisId,
+      dto,
+      principal,
+      dto.role === "MAIN"
+        ? () => {
+            this.theses.recordMainSupervisorAssigned(thesisId, principal);
+          }
+        : undefined,
+    );
   }
 
   @Post(":thesisId/supervisors/:assignmentId/end")

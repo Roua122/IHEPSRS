@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+
 import { getCorrelationId } from "../../common/observability/correlation-context";
 import { ResearchAuditService } from "../../research/domain/research-audit.service";
 import type { StatusHistoryRecord } from "./academic.types";
@@ -47,7 +48,7 @@ export class AcademicAuditService {
       reasonCode: input.reasonCode,
       correlationId: getCorrelationId(),
     };
-    this.statusHistory.push(entry);
+
     this.record(
       input.actorUserId,
       `${input.entityType}.status.${input.toStatus}`,
@@ -55,6 +56,9 @@ export class AcademicAuditService {
       input.entityId,
       input.sourceId,
     );
+
+    this.statusHistory.push(entry);
+
     return { ...entry };
   }
 
