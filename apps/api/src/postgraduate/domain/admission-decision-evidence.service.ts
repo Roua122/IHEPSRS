@@ -9,11 +9,6 @@ import type {
 } from "./academic.types";
 import { AcademicReferenceService } from "./academic-reference.service";
 
-/**
- * TASK-PG-004 / BR-008: caller-provided enrollment references are checked
- * against the accepted application and its immutable submission snapshot.
- * The caller is PG005's trusted domain operation, NOT an applicant HTTP body.
- */
 export interface AdmissionEnrollmentTarget {
   personId: string;
   institutionId: string;
@@ -36,20 +31,10 @@ export interface AdmissionEnrollmentEvidence {
   submissionSnapshotId: string;
   submittedProgramVersionNo: number;
   startDate: string;
-  /**
-   * BR-008: a program inactive/non-effective on startDate cannot produce an
-   * automatically Active enrollment. Other PG005 validations still apply.
-   */
   initialEnrollmentStatusIfOtherChecksPass: "Active" | "PendingValidation";
   pendingValidationReason?: "PROGRAM_NOT_EFFECTIVE_AT_START_DATE";
 }
 
-/**
- * FR-012/BR-007/BR-008/UC-05. Pure validation over the PG002/PG003 store.
- * Does NOT create an Enrollment or replace the INS program registry.
- * PG005 must invoke this gate before any Enrollment write, transactionally
- * with that write once the team's persistent store is integrated (NFR-014).
- */
 @Injectable()
 export class AdmissionDecisionEvidenceService {
   constructor(
@@ -57,11 +42,6 @@ export class AdmissionDecisionEvidenceService {
     private readonly persons: PersonIdentityService,
   ) {}
 
-  /**
-   * Refuse formal decision/condition clearance on an unsubmitted or mismapped
-   * application. The snapshot preserves the actual source-of-truth identity
-   * and program/cycle that were reviewed, rather than client supplied ids.
-   */
   assertLatestSubmissionConsistent(
     application: PostgraduateApplication,
   ): ApplicationSubmissionSnapshot {
@@ -77,6 +57,7 @@ export class AdmissionDecisionEvidenceService {
         "FR-012/BR-008: a current submitted application snapshot is required",
       );
     }
+
     if (
       snapshot.programId !== application.programId ||
       snapshot.admissionCycleId !== application.admissionCycleId ||
@@ -86,8 +67,10 @@ export class AdmissionDecisionEvidenceService {
         "BR-008: submitted person/program/cycle differs from application",
       );
     }
+
     const program = this.references.getProgram(application.programId);
     const cycle = this.references.getCycle(application.admissionCycleId);
+
     if (
       program.institutionId !== application.institutionId ||
       cycle.programId !== application.programId
@@ -96,19 +79,16 @@ export class AdmissionDecisionEvidenceService {
         "BR-008: source registry program/institution/cycle mismatch",
       );
     }
+
     return snapshot;
   }
 
-  /**
-   * BR-008: PG005 enrollment precondition. Rejected, unreviewed, pending
-   * conditional decisions and mismatched applications are always refused.
-   * Inactive/non-effective programs yield PendingValidation, never Active.
-   */
   assessForEnrollment(
     application: PostgraduateApplication,
     target: AdmissionEnrollmentTarget,
   ): AdmissionEnrollmentEvidence {
     const snapshot = this.assertLatestSubmissionConsistent(application);
+
     for (const field of [
       "personId",
       "institutionId",
@@ -119,9 +99,11 @@ export class AdmissionDecisionEvidenceService {
         throw this.invalid(`BR-008: ${field} is required`);
       }
     }
+
     if (!this.isValidDate(target?.startDate)) {
       throw this.invalid("BR-008: startDate must be a valid YYYY-MM-DD date");
     }
+
     if (
       !this.sameCanonicalPerson(application.personId, target.personId) ||
       application.institutionId !== target.institutionId ||
@@ -132,7 +114,9 @@ export class AdmissionDecisionEvidenceService {
         "BR-008: enrollment person/program/cycle/institution mismatch",
       );
     }
+
     const decision = application.decision;
+
     if (
       application.status !== "Accepted" ||
       !decision ||
@@ -149,6 +133,7 @@ export class AdmissionDecisionEvidenceService {
         "BR-008: an authorized, recorded Accepted decision is required",
       );
     }
+
     if (decision.outcome === "ConditionalAccepted") {
       if (
         !decision.conditions?.trim() ||
@@ -163,14 +148,10 @@ export class AdmissionDecisionEvidenceService {
       }
     }
 
-    const program = this.references.getProgram(application.programId);
-    const effective =
-      program.status === "Active" &&
-      this.isValidDate(program.effectiveFrom) &&
-      program.effectiveFrom <= target.startDate &&
-      (!program.effectiveTo ||
-        (this.isValidDate(program.effectiveTo) &&
-          program.effectiveTo >= target.startDate));
+    const effective = this.references.isProgramEffective(
+      application.programId,
+      target.startDate,
+    );
 
     return {
       applicationId: application.applicationId,

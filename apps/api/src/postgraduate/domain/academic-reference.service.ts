@@ -2,33 +2,39 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 
 import { AppException } from "../../common/errors/app-exception";
 import { ErrorCode } from "../../common/errors/error-code";
+import {
+  type AcademicProgram,
+  InstitutionsService,
+} from "../../institutions/institutions.service";
 import type {
   AdmissionCycleReference,
   ProgramReference,
 } from "./academic.types";
 
 /**
- * MOCK-ONLY adapter until the INS001-004 registry supplies stable contracts.
- * These records are academic demonstration fixtures, not a replacement for the
- * institution registry and NOT regulatory policies. Fail closed for unknown ids.
+ * Postgraduate academic-reference adapter.
+ *
+ * Canonical Institution/AcademicProgram identity, versioning and effective-date
+ * validation come from InstitutionsService.
+ *
+ * AdmissionCycle and application-document requirements remain prototype
+ * fixtures until their owning shared registries/adapters are integrated.
  */
 @Injectable()
 export class AcademicReferenceService {
-  private readonly programs = new Map<string, ProgramReference>([
-    [
-      "PROGRAM-DEMO-001",
-      {
-        programId: "PROGRAM-DEMO-001",
-        institutionId: "INST-001",
-        orgUnitId: "ORG-DEMO-001",
-        status: "Active",
-        effectiveFrom: "2026-01-01",
-        versionNo: 1,
-        thesisRequired: true,
-        requiredApplicationDocumentPurposes: [],
-      },
-    ],
-  ]);
+  /**
+   * Explicit prototype application requirements configuration.
+   * An empty array means "configured with no mandatory document purposes".
+   * Missing programId means requirements are NOT configured.
+   */
+  private readonly applicationRequirements = new Map<string, readonly string[]>(
+    [["PROGRAM-DEMO-001", []]],
+  );
+
+  /**
+   * AdmissionCycle has no canonical shared registry in the current checkout.
+   * Keep this fixture isolated instead of duplicating AcademicProgram data.
+   */
   private readonly cycles = new Map<string, AdmissionCycleReference>([
     [
       "CYCLE-DEMO-2026",
@@ -43,15 +49,62 @@ export class AcademicReferenceService {
     ],
   ]);
 
+  constructor(private readonly institutions: InstitutionsService) {}
+
+  /**
+   * General canonical program read.
+   *
+   * This intentionally does NOT require the latest version to be Active:
+   * admission/enrollment workflows may need historical/inactive metadata
+   * before deciding PendingValidation under BR-008.
+   */
   getProgram(programId: string): ProgramReference {
-    const record = this.programs.get(programId);
-    if (!record) throw this.notFound("AcademicProgram", programId);
-    return {
-      ...record,
-      requiredApplicationDocumentPurposes: [
-        ...record.requiredApplicationDocumentPurposes,
-      ],
-    };
+    return this.toProgramReference(
+      this.institutions.getLatestProgramForIntegration(programId),
+    );
+  }
+
+  /**
+   * Trusted effective-date gate backed by INS001-004.
+   * Includes canonical Institution and OrgUnit eligibility checks.
+   */
+  assertProgramEffective(programId: string, date: string): ProgramReference {
+    return this.toProgramReference(
+      this.institutions.assertProgramEligible(programId, date),
+    );
+  }
+
+  /**
+   * BR-008 helper: lack of an eligible canonical version at this date means
+   * PendingValidation rather than trusting stale local program metadata.
+   */
+  isProgramEffective(programId: string, date: string): boolean {
+    try {
+      this.institutions.assertProgramEligible(programId, date);
+      return true;
+    } catch (error) {
+      if (error instanceof AppException) return false;
+      throw error;
+    }
+  }
+
+  /**
+   * BR-006: distinguish an explicitly configured empty requirements list
+   * from missing program requirements configuration.
+   */
+  getRequiredApplicationDocumentPurposes(programId: string): readonly string[] {
+    const purposes = this.applicationRequirements.get(programId);
+
+    if (!purposes) {
+      throw new AppException({
+        code: ErrorCode.ServiceUnavailable,
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message:
+          "BR-006/FR-029: application document requirements are not configured for this program",
+      });
+    }
+
+    return [...purposes];
   }
 
   /** Cohort IDs must be supplied by a trusted registry, not caller input. */
@@ -67,37 +120,13 @@ export class AcademicReferenceService {
     return { ...record };
   }
 
-  assertProgramEffective(programId: string, date: string): ProgramReference {
-    const record = this.getProgram(programId);
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      Number.isNaN(Date.parse(`${date}T00:00:00Z`))
-    ) {
-      throw new AppException({
-        code: ErrorCode.Validation,
-        message: "BR-003/BR-042: invalid effective date",
-      });
-    }
-    if (
-      record.status !== "Active" ||
-      record.effectiveFrom > date ||
-      (record.effectiveTo && record.effectiveTo < date)
-    ) {
-      throw new AppException({
-        code: ErrorCode.Conflict,
-        status: HttpStatus.CONFLICT,
-        message: "BR-003/BR-008: academic program is not effective",
-      });
-    }
-    return record;
-  }
-
   assertCycleAvailable(
     cycleId: string,
     programId: string,
     at = new Date(),
   ): AdmissionCycleReference {
     const cycle = this.getCycle(cycleId);
+
     if (
       cycle.programId !== programId ||
       cycle.status !== "Open" ||
@@ -110,17 +139,28 @@ export class AcademicReferenceService {
         message: "UC-04: admission cycle is not open for this program",
       });
     }
+
     return cycle;
   }
 
-  /** Test adapter fixture only: never exposed as an HTTP write operation. */
-  replaceMockProgramForTest(program: ProgramReference): void {
-    this.programs.set(program.programId, {
-      ...program,
+  private toProgramReference(program: AcademicProgram): ProgramReference {
+    return {
+      programId: program.programId,
+      institutionId: program.institutionId,
+      orgUnitId: program.orgUnitId,
+      status: program.status === "Active" ? "Active" : "Inactive",
+      effectiveFrom: program.effectiveFrom,
+      effectiveTo: program.effectiveTo,
+      versionNo: program.versionNo,
+      thesisRequired: program.thesisRequired,
+
+      // Compatibility field only. Submission code must use
+      // getRequiredApplicationDocumentPurposes() so missing configuration
+      // cannot silently become "no required documents".
       requiredApplicationDocumentPurposes: [
-        ...program.requiredApplicationDocumentPurposes,
+        ...(this.applicationRequirements.get(program.programId) ?? []),
       ],
-    });
+    };
   }
 
   private notFound(type: string, id: string): AppException {

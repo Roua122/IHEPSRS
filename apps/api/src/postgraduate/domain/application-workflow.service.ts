@@ -252,8 +252,6 @@ export class ApplicationWorkflowService {
         "BR-036: document already linked to this application",
       );
     }
-    // Domain adapter must confirm the actual target exists and document is
-    // clean, classified, scoped to the applicant/institution and Available.
     await this.documents.assertLinkable({
       documentId,
       purpose,
@@ -279,7 +277,7 @@ export class ApplicationWorkflowService {
       linkedAt: new Date().toISOString(),
       linkedByUserId: principal.userId,
     };
-    next.attachedDocuments.push(link); // all previous versions remain traceable
+    next.attachedDocuments.push(link);
     this.audit.record(
       principal.userId,
       "postgraduate.application.document.linked",
@@ -324,11 +322,6 @@ export class ApplicationWorkflowService {
     return copyApplication(next);
   }
 
-  /**
-   * FR-011: scoped reviewer claims an unassigned Submitted application.
-   * Assignment of a different user must wait for a trusted IAM directory;
-   * user-supplied reviewer IDs are never trusted as proof of eligibility.
-   */
   startReview(
     applicationId: string,
     principal: AuthorizationPrincipal,
@@ -357,10 +350,6 @@ export class ApplicationWorkflowService {
     return copyApplication(next);
   }
 
-  /**
-   * FR-011: only the assigned reviewer may add notes or recommendations.
-   * The higher-privilege final acceptance/rejection is a separate operation.
-   */
   recordReview(
     applicationId: string,
     input: ReviewInput,
@@ -419,11 +408,6 @@ export class ApplicationWorkflowService {
     return copyApplication(next);
   }
 
-  /**
-   * FR-012: final outcomes require PGA authority; the PGO review alone
-   * never grants acceptance. Conditional decisions remain UnderReview until
-   * an authority verifies the conditions, so PG004 cannot enroll prematurely.
-   */
   decide(
     applicationId: string,
     input: DecisionInput,
@@ -459,11 +443,7 @@ export class ApplicationWorkflowService {
     ) {
       throw this.invalid("FR-012: invalid admission decision outcome");
     }
-    // PG004/BR-008: decisions must bind to the same submitted Person,
-    // program and admission cycle that the assigned officer actually reviewed.
     this.admissionEvidence.assertLatestSubmissionConsistent(current);
-    // FR-012 requires an explicit decision reason (BR-007 also requires it
-    // for every rejection). Never derive a reason from a client status field.
     const reason = this.required(input.reason, "reason");
     const conditions = this.optionalText(input.conditions, "conditions");
     if (input.outcome === "ConditionalAccepted" && !conditions) {
@@ -475,8 +455,6 @@ export class ApplicationWorkflowService {
       );
     }
     const now = new Date().toISOString();
-    // BR-038/BR-062: pin the approved effective policy version at the event.
-    // Do not take policyVersionId from a caller-controlled HTTP payload.
     const policyVersionId = this.policies.getPolicyAt(
       new Date(now),
     ).policyVersion;
@@ -501,8 +479,6 @@ export class ApplicationWorkflowService {
       reviewedAt: now,
     });
     if (input.outcome === "ConditionalAccepted") {
-      // The Baseline has no extra ApplicationStatus for conditional approval.
-      // Keep it UnderReview until a separate, auditable clearance operation.
       this.audit.record(
         principal.userId,
         "postgraduate.application.decision.conditional",
@@ -536,7 +512,6 @@ export class ApplicationWorkflowService {
     return copyApplication(next);
   }
 
-  /** FR-012/BR-008: only cleared conditional approvals become Accepted. */
   clearAdmissionConditions(
     applicationId: string,
     input: { clearanceEvidence: string },
@@ -715,7 +690,6 @@ export class ApplicationWorkflowService {
     next.requestedDocumentPurposes = [];
     next.reviewAssignedToUserId = undefined;
     next.submissions.push(this.snapshot(next, now));
-    // BR-041: firstSubmittedAt is intentionally never changed.
     this.audit.transition({
       entityType: "PostgraduateApplication",
       entityId: next.applicationId,
@@ -733,13 +707,6 @@ export class ApplicationWorkflowService {
     return copyApplication(next);
   }
 
-  /**
-   * TASK-PG-004 / BR-008 / NFR-011: internal handoff to PG005.
-   * No HTTP endpoint is exposed here; the trusted Enrollment operation passes
-   * its actual proposed startDate and matching identity/program/cycle fields.
-   * Calling this method does NOT create an Enrollment or authorize Active by
-   * itself. PG005 must still validate the student and enrollment constraints.
-   */
   admissionEvidenceForEnrollment(
     applicationId: string,
     target: AdmissionEnrollmentTarget,
@@ -813,7 +780,6 @@ export class ApplicationWorkflowService {
       .map(copyApplication);
   }
 
-  /** BR-041/NFR-021: effective decision clock excludes NeedMoreInfo pauses. */
   getReviewTiming(
     applicationId: string,
     principal: AuthorizationPrincipal,
@@ -903,14 +869,15 @@ export class ApplicationWorkflowService {
     ) {
       throw this.invalid("BR-006: applicant Person is incomplete or inactive");
     }
-    // The initial Submit needs an OPEN cycle. BR-041 resubmission is a
-    // continuation of that submission and may happen after its close date.
+
     const program = isResubmission
       ? this.references.getProgram(current.programId)
       : this.references.assertProgramEffective(current.programId, this.today());
+
     if (program.institutionId !== current.institutionId) {
       throw this.conflict("BR-006: application program/institution mismatch");
     }
+
     if (isResubmission) {
       const cycle = this.references.getCycle(current.admissionCycleId);
       if (cycle.programId !== current.programId) {
@@ -924,27 +891,33 @@ export class ApplicationWorkflowService {
         current.programId,
       );
     }
+
     const previousSnapshot =
       current.submissions[current.submissions.length - 1];
+
     const requiredPurposes =
       isResubmission && previousSnapshot?.programId === current.programId
         ? previousSnapshot.requiredDocumentPurposes
-        : program.requiredApplicationDocumentPurposes;
+        : this.references.getRequiredApplicationDocumentPurposes(
+            current.programId,
+          );
+
     const activePurposes = new Set(
       current.attachedDocuments
         .filter((link) => link.isActive)
         .map((link) => link.purpose),
     );
+
     const missing = requiredPurposes.filter(
       (purpose) => !activePurposes.has(purpose),
     );
+
     if (missing.length) {
       throw this.invalid(
         `BR-006: missing required documents (${missing.join(", ")})`,
       );
     }
-    // A document may be quarantined/revoked after it was first linked.
-    // Never accept a stale "Available" signal supplied by the browser.
+
     for (const link of current.attachedDocuments.filter(
       (item) => item.isActive,
     )) {
@@ -975,15 +948,19 @@ export class ApplicationWorkflowService {
           .programId === application.programId
           ? application.submissions[application.submissions.length - 1]
               .programVersionNo
-          : this.references.getProgram(application.programId).versionNo,
+          : this.references.assertProgramEffective(
+              application.programId,
+              this.today(),
+            ).versionNo,
       requiredDocumentPurposes: [
         ...(application.submissions.length > 0 &&
         application.submissions[application.submissions.length - 1]
           .programId === application.programId
           ? application.submissions[application.submissions.length - 1]
               .requiredDocumentPurposes
-          : this.references.getProgram(application.programId)
-              .requiredApplicationDocumentPurposes),
+          : this.references.getRequiredApplicationDocumentPurposes(
+              application.programId,
+            )),
       ],
       attachedDocuments: application.attachedDocuments
         .filter((link) => link.isActive)
@@ -992,9 +969,6 @@ export class ApplicationWorkflowService {
     };
   }
 
-  /** Guard against overwriting a concurrent operation after external awaits.
-   * The team's transactional repository must enforce this across instances.
-   */
   private assertUnchanged(
     applicationId: string,
     expected: PostgraduateApplication,
@@ -1045,7 +1019,6 @@ export class ApplicationWorkflowService {
         !["Rejected", "Withdrawn", "Cancelled"].includes(record.status),
     );
     if (duplicate) {
-      // UC-04 permits blocking duplicate active requests; no silent duplication.
       throw this.conflict(
         "UC-04: another active application exists for this cycle",
       );

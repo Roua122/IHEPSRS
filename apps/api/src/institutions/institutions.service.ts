@@ -435,6 +435,17 @@ export class InstitutionsService {
       return { ...record };
     });
   }
+  /**
+   * Internal server-side integration read.
+   * Returns the latest canonical AcademicProgram version without exposing
+   * a new HTTP operation or bypassing write authorization.
+   */
+  getLatestProgramForIntegration(programId: string): AcademicProgram {
+    const versions = this.requireProgramVersions(programId);
+    const latest = [...versions].sort((a, b) => b.versionNo - a.versionNo)[0];
+
+    return { ...latest };
+  }
 
   assertProgramEligible(
     programId: string,

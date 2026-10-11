@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-
+import { InstitutionsModule } from "../institutions/institutions.module";
 import { ConfigurationModule } from "../config/configuration.module";
 import { IdentityModule } from "../identity/identity.module";
 import { ResearchModule } from "../research/research.module";
@@ -25,7 +25,12 @@ import {
 } from "./domain/degree-readiness.gateway";
 
 @Module({
-  imports: [ConfigurationModule, IdentityModule, ResearchModule],
+  imports: [
+    ConfigurationModule,
+    IdentityModule,
+    InstitutionsModule,
+    ResearchModule,
+  ],
   controllers: [
     ApplicantsController,
     ApplicationsController,
