@@ -6,6 +6,12 @@ import { InstitutionsModule } from "../institutions/institutions.module";
 import { PostgraduateModule } from "../postgraduate/postgraduate.module";
 import { ResearchModule } from "../research/research.module";
 import { ThesesController } from "./controllers/theses.controller";
+import { ThesisDefenseController } from "./controllers/thesis-defense.controller";
+import { ThesisDefenseService } from "./domain/thesis-defense.service";
+import {
+  DefenseEligibilityGateway,
+  UnavailableDefenseEligibilityGateway,
+} from "./domain/defense-eligibility.gateway";
 import {
   ThesisDocumentGateway,
   UnavailableThesisDocumentGateway,
@@ -29,7 +35,11 @@ import { ThesisSupervisorService } from "./thesis-supervisor.service";
     PostgraduateModule,
     ResearchModule,
   ],
-  controllers: [ThesisSupervisorController, ThesesController],
+  controllers: [
+    ThesisSupervisorController,
+    ThesesController,
+    ThesisDefenseController,
+  ],
   providers: [
     PrototypeAuditService,
 
@@ -40,6 +50,11 @@ import { ThesisSupervisorService } from "./thesis-supervisor.service";
 
     // TASK-TH-001 / TH-003 / TH-004
     ThesisEntityService,
+    ThesisDefenseService,
+    {
+      provide: DefenseEligibilityGateway,
+      useClass: UnavailableDefenseEligibilityGateway,
+    },
     {
       provide: ThesisDocumentGateway,
       useClass: UnavailableThesisDocumentGateway,

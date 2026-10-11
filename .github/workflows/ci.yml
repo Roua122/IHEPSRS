@@ -66,6 +66,12 @@ jobs:
       - name: Thesis supervisor checks
         run: pnpm --filter @ihepsrs/api thesis:check
 
+      - name: TH005-TH008 defense workflow checks
+        run: pnpm --filter @ihepsrs/api thesis-defense:check
+
+      - name: HRD001 focused security regression checks
+        run: pnpm --filter @ihepsrs/api hardening-security:check
+
       - name: Accessibility verification
         run: pnpm --filter @ihepsrs/web accessibility:check
 
