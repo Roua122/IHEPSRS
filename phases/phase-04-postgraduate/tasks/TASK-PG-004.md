@@ -49,3 +49,19 @@ Owner: رهف عادل
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+## Implementation note — TASK-PG-004, 2026-10-11 (WIP; not accepted)
+
+**In this branch, after PG003**:
+- `FR-012`, `BR-007`: PG003 already implemented the scoped PGA-only `Accepted` / `Rejected` / `ConditionalAccepted` domain decision, timestamp, mandatory reason, and pinned effective `policyVersionId`. PG004 reuses these operations instead of adding a duplicate decision endpoint.
+- `BR-008`: `AdmissionDecisionEvidenceService.assertLatestSubmissionConsistent` now blocks a formal decision and conditional-clearance transition if the current immutable submission no longer matches the application's canonical Person, program, cycle and institution registry references.
+- `BR-008`: `ApplicationWorkflowService.admissionEvidenceForEnrollment` is an **internal, scoped** handoff to PG005. It refuses Rejected, missing/unrecorded, or uncleared conditional decisions and verifies target person/institution/program/cycle against the latest submission. The evidence carries decision ID, source snapshot, decision time and historical policy version.
+- `BR-008`: if a program is inactive or outside its effective dates at the proposed `startDate`, the handoff is `PendingValidation` (never an automatic `Active`). It **does not** create a new enrollment or alter any business status. PG005 owns the Enrollment write, student validation and program-change/cancellation workflow.
+- `NFR-011`: a successful scoped read of sensitive admission enrollment evidence is audited with the existing correlation/hash-chain audit service. No unscoped HTTP endpoint is added.
+
+**Dependencies before the shared acceptance and Definition of Done**:
+- `NFR-014`/`NFR-011`: the uploaded project keeps applications, decisions, audit entries and notification outbox in memory. A real transactional persistent store and durable append-only/WORM audit must be integrated by the team. This patch makes **no** durability claim.
+- The current `AcademicReferenceService` is a mock; integrate the authoritative Institution/Program Registry and approved effective policies, without silently changing the Baseline.
+- The proposed representation of conditional acceptance in `decisions/architecture/ADR-PG-003-conditional-admission.md` remains subject to team approval.
+- `PG005` MUST call `admissionEvidenceForEnrollment` with its trusted proposed target and date **before** inserting an Enrollment, and enforce all other `FR-013`/`BR-008` conditions. This is not implemented in PG004.
+- Review and integration/QA for `TC-FR-012`, `TC-BR-007`, `TC-BR-008`, `TC-NFR-011`, `TC-NFR-014` and UC-05 remain pending with the team. `Status: TODO` and unchecked Definition of Done are intentionally retained.

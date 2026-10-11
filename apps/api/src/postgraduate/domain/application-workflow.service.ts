@@ -21,6 +21,11 @@ import type {
 import { ApplicantService } from "./applicant.service";
 import { ApplicationDocumentGateway } from "./application-document.gateway";
 import { ApplicationNotificationOutboxService } from "./application-notification-outbox.service";
+import {
+  AdmissionDecisionEvidenceService,
+  type AdmissionEnrollmentEvidence,
+  type AdmissionEnrollmentTarget,
+} from "./admission-decision-evidence.service";
 
 interface DraftInput {
   programId: string;
@@ -95,6 +100,7 @@ export class ApplicationWorkflowService {
     private readonly documents: ApplicationDocumentGateway,
     private readonly notifications: ApplicationNotificationOutboxService,
     private readonly policies: BusinessPolicyService,
+    private readonly admissionEvidence: AdmissionDecisionEvidenceService,
   ) {}
 
   createDraft(
@@ -401,6 +407,9 @@ export class ApplicationWorkflowService {
     ) {
       throw this.invalid("FR-012: invalid admission decision outcome");
     }
+    // PG004/BR-008: decisions must bind to the same submitted Person,
+    // program and admission cycle that the assigned officer actually reviewed.
+    this.admissionEvidence.assertLatestSubmissionConsistent(current);
     // FR-012 requires an explicit decision reason (BR-007 also requires it
     // for every rejection). Never derive a reason from a client status field.
     const reason = this.required(input.reason, "reason");
@@ -484,6 +493,7 @@ export class ApplicationWorkflowService {
     ) {
       throw this.conflict("FR-012: no outstanding conditional acceptance to clear");
     }
+    this.admissionEvidence.assertLatestSubmissionConsistent(current);
     const evidence = this.required(input?.clearanceEvidence, "clearanceEvidence");
     const now = new Date().toISOString();
     const next = copyApplication(current);
@@ -640,6 +650,35 @@ export class ApplicationWorkflowService {
       event: "ApplicationResubmitted",
     });
     return copyApplication(next);
+  }
+
+  /**
+   * TASK-PG-004 / BR-008 / NFR-011: internal handoff to PG005.
+   * No HTTP endpoint is exposed here; the trusted Enrollment operation passes
+   * its actual proposed startDate and matching identity/program/cycle fields.
+   * Calling this method does NOT create an Enrollment or authorize Active by
+   * itself. PG005 must still validate the student and enrollment constraints.
+   */
+  admissionEvidenceForEnrollment(
+    applicationId: string,
+    target: AdmissionEnrollmentTarget,
+    principal: AuthorizationPrincipal,
+  ): AdmissionEnrollmentEvidence {
+    const application = this.requireApplication(applicationId);
+    this.authorization.assertOfficer(
+      principal,
+      application.institutionId,
+      application.programId,
+    );
+    const evidence = this.admissionEvidence.assessForEnrollment(application, target);
+    this.audit.record(
+      principal.userId,
+      "postgraduate.admission.enrollment-evidence.read",
+      "PostgraduateApplication",
+      application.applicationId,
+      "FR-012/BR-008/NFR-011",
+    );
+    return evidence;
   }
 
   getOne(
