@@ -8,8 +8,10 @@ import { ResearchModule } from "../research/research.module";
 import { ThesesController } from "./controllers/theses.controller";
 import { ThesisDefenseController } from "./controllers/thesis-defense.controller";
 import { ThesisDefenseService } from "./domain/thesis-defense.service";
-import { DefenseEligibilityGateway } from "./domain/defense-eligibility.gateway";
-import { InstitutionalDefenseEligibilityGateway } from "./domain/institutional-defense-eligibility.gateway";
+import {
+  DefenseEligibilityGateway,
+  UnavailableDefenseEligibilityGateway,
+} from "./domain/defense-eligibility.gateway";
 import {
   ThesisDocumentGateway,
   UnavailableThesisDocumentGateway,
@@ -51,7 +53,7 @@ import { ThesisSupervisorService } from "./thesis-supervisor.service";
     ThesisDefenseService,
     {
       provide: DefenseEligibilityGateway,
-      useClass: InstitutionalDefenseEligibilityGateway,
+      useClass: UnavailableDefenseEligibilityGateway,
     },
     {
       provide: ThesisDocumentGateway,

@@ -32,15 +32,3 @@ Also rerun:
 5. Record access/read audit, reporting as-of integration, security assessments, full API/UI/demo acceptance and independent review remain unverified.
 
 Do not mark TH005–008 final DONE before mandatory dependencies, full CI and acceptance tests pass. This package is a focused, merge-reviewable prototype increment, not a production completion certificate.
-
-## Next increment — trusted internal eligibility bridge (2026-10-11)
-
-- Enabled `InstitutionalDefenseEligibilityGateway` in the actual `ThesisModule` instead of the always-unavailable adapter.
-- Positive attestation is issued only by an authenticated, correctly scoped PGA through `POST /theses/:thesisId/defense/committee-member-attestations` and tied to the Thesis, institution, program, examiner Person and role. Each entry records the signer and an audit entry; it cannot be replayed for another institution/program/Thesis.
-- Member must have an active canonical internal Researcher profile and active Person in the Thesis institution. Student-as-examiner, unknown/inactive researcher, declared conflict and known Research COI records are rejected. A later COI record invalidates the earlier eligible state when rechecked at committee proposal, committee approval and scheduling.
-- This is an **institutional attestation/MOCK** for the prototype. It does not certify third-party external examiners, independent HR checks, or absence of unrecorded conflicts. It must be replaced or expanded to a verified upstream service before production. If no PGA attestation exists, approval remains fail-closed.
-- `pnpm --filter @ihepsrs/api thesis-defense:check` now runs the existing 35 cases plus **23 focused eligibility/security cases** in `check-defense-eligibility.cjs`.
-
-Unclosed: reliable immutable DocumentLink for minutes/corrections, durable transactional records, ProgramRequirements/Holds/degree-award integration, external examiner eligibility, UI/E2E acceptance and deployment proof.
-
-Decision boundary: `architecture/decisions/ADR-017-defense-eligibility-prototype-boundary.md` (proposed, pending academic approval).
