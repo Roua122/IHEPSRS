@@ -1,6 +1,8 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 
+import { BusinessPolicyService } from "../../config/business-policy.service";
+
 import { AppException } from "../../common/errors/app-exception";
 import { ErrorCode } from "../../common/errors/error-code";
 import type { AuthorizationPrincipal } from "../../identity/authorization/authorization.types";
@@ -9,8 +11,10 @@ import { AcademicAuditService } from "./academic-audit.service";
 import { AcademicAuthorizationService } from "./academic-authorization.service";
 import { AcademicReferenceService } from "./academic-reference.service";
 import type {
+  AdmissionDecision,
   ApplicationDocumentLink,
   ApplicationEditableField,
+  ApplicationReview,
   ApplicationSubmissionSnapshot,
   PostgraduateApplication,
 } from "./academic.types";
@@ -32,6 +36,27 @@ interface MoreInfoInput {
   reason: string;
   requestedFields?: ApplicationEditableField[];
   requestedDocumentPurposes?: string[];
+}
+
+interface ReviewInput {
+  reviewType: "Eligibility" | "Academic";
+  recommendation?: "Approve" | "Reject";
+  comments?: string;
+}
+
+interface DecisionInput {
+  outcome: AdmissionDecision["outcome"];
+  reason: string;
+  conditions?: string;
+}
+
+/** FR-011/BR-041: decision SLA time excluding every NeedMoreInfo interval. */
+export interface ApplicationReviewTiming {
+  firstSubmittedAt: string;
+  decidedAt?: string;
+  calculatedAt: string;
+  excludedNeedMoreInfoMs: number;
+  effectiveDecisionMs: number;
 }
 
 function copyApplication(record: PostgraduateApplication): PostgraduateApplication {
@@ -69,6 +94,7 @@ export class ApplicationWorkflowService {
     private readonly audit: AcademicAuditService,
     private readonly documents: ApplicationDocumentGateway,
     private readonly notifications: ApplicationNotificationOutboxService,
+    private readonly policies: BusinessPolicyService,
   ) {}
 
   createDraft(
@@ -261,6 +287,11 @@ export class ApplicationWorkflowService {
     return copyApplication(next);
   }
 
+  /**
+   * FR-011: scoped reviewer claims an unassigned Submitted application.
+   * Assignment of a different user must wait for a trusted IAM directory;
+   * user-supplied reviewer IDs are never trusted as proof of eligibility.
+   */
   startReview(
     applicationId: string,
     principal: AuthorizationPrincipal,
@@ -283,9 +314,205 @@ export class ApplicationWorkflowService {
       fromStatus: "Submitted",
       toStatus: "UnderReview",
       actorUserId: principal.userId,
-      sourceId: "BR-041",
+      sourceId: "FR-011",
     });
     this.applications.set(next.applicationId, next);
+    return copyApplication(next);
+  }
+
+  /**
+   * FR-011: only the assigned reviewer may add notes or recommendations.
+   * The higher-privilege final acceptance/rejection is a separate operation.
+   */
+  recordReview(
+    applicationId: string,
+    input: ReviewInput,
+    principal: AuthorizationPrincipal,
+  ): PostgraduateApplication {
+    const current = this.requireApplication(applicationId);
+    this.assertAssignedReviewer(current, principal);
+    if (current.status !== "UnderReview" || current.decision) {
+      throw this.conflict("FR-011: review notes require an undecided UnderReview application");
+    }
+    if (input?.reviewType !== "Eligibility" && input?.reviewType !== "Academic") {
+      throw this.invalid("FR-011: reviewType must be Eligibility or Academic");
+    }
+    if (
+      input.recommendation !== undefined &&
+      input.recommendation !== "Approve" &&
+      input.recommendation !== "Reject"
+    ) {
+      throw this.invalid("FR-011: invalid review recommendation");
+    }
+    const comments = this.optionalText(input.comments, "comments");
+    if (!comments && !input.recommendation) {
+      throw this.invalid("FR-011: review must include comments or a recommendation");
+    }
+    if (input.recommendation === "Reject" && !comments) {
+      throw this.invalid("BR-007: rejection recommendation must include a reason");
+    }
+    const next = copyApplication(current);
+    const review: ApplicationReview = {
+      applicationReviewId: randomUUID(),
+      applicationId: next.applicationId,
+      reviewerUserId: principal.userId,
+      reviewType: input.reviewType,
+      decision: input.recommendation,
+      comments,
+      reviewedAt: new Date().toISOString(),
+    };
+    next.reviews.push(review);
+    this.audit.record(
+      principal.userId,
+      "postgraduate.application.review.recorded",
+      "PostgraduateApplication",
+      next.applicationId,
+      "FR-011",
+    );
+    this.applications.set(next.applicationId, next);
+    return copyApplication(next);
+  }
+
+  /**
+   * FR-012: final outcomes require PGA authority; the PGO review alone
+   * never grants acceptance. Conditional decisions remain UnderReview until
+   * an authority verifies the conditions, so PG004 cannot enroll prematurely.
+   */
+  decide(
+    applicationId: string,
+    input: DecisionInput,
+    principal: AuthorizationPrincipal,
+  ): PostgraduateApplication {
+    const current = this.requireApplication(applicationId);
+    this.authorization.assertAuthority(principal, current.institutionId, current.programId);
+    if (current.status !== "UnderReview" || current.decision) {
+      throw this.conflict("FR-012: only an undecided UnderReview application can be decided");
+    }
+    if (!current.reviewAssignedToUserId || !current.reviews.some(
+      (entry) => entry.reviewerUserId === current.reviewAssignedToUserId &&
+        entry.reviewType !== "Final",
+    )) {
+      throw this.conflict("FR-011: an assigned reviewer must record the review first");
+    }
+    if (
+      input?.outcome !== "Accepted" &&
+      input?.outcome !== "Rejected" &&
+      input?.outcome !== "ConditionalAccepted"
+    ) {
+      throw this.invalid("FR-012: invalid admission decision outcome");
+    }
+    // FR-012 requires an explicit decision reason (BR-007 also requires it
+    // for every rejection). Never derive a reason from a client status field.
+    const reason = this.required(input.reason, "reason");
+    const conditions = this.optionalText(input.conditions, "conditions");
+    if (input.outcome === "ConditionalAccepted" && !conditions) {
+      throw this.invalid("FR-012: conditional acceptance requires conditions");
+    }
+    if (input.outcome !== "ConditionalAccepted" && conditions) {
+      throw this.invalid("FR-012: conditions are only valid for conditional acceptance");
+    }
+    const now = new Date().toISOString();
+    // BR-038/BR-062: pin the approved effective policy version at the event.
+    // Do not take policyVersionId from a caller-controlled HTTP payload.
+    const policyVersionId = this.policies.getPolicyAt(new Date(now)).policyVersion;
+    const next = copyApplication(current);
+    next.decision = {
+      decisionId: randomUUID(),
+      outcome: input.outcome,
+      decidedByUserId: principal.userId,
+      decidedAt: now,
+      reason,
+      conditions: input.outcome === "ConditionalAccepted" ? conditions : undefined,
+      policyVersionId,
+    };
+    next.reviews.push({
+      applicationReviewId: randomUUID(),
+      applicationId: next.applicationId,
+      reviewerUserId: principal.userId,
+      reviewType: "Final",
+      decision: input.outcome === "Rejected" ? "Reject" : "Approve",
+      comments: reason,
+      reviewedAt: now,
+    });
+    if (input.outcome === "ConditionalAccepted") {
+      // The Baseline has no extra ApplicationStatus for conditional approval.
+      // Keep it UnderReview until a separate, auditable clearance operation.
+      this.audit.record(
+        principal.userId,
+        "postgraduate.application.decision.conditional",
+        "PostgraduateApplication",
+        next.applicationId,
+        "FR-012",
+      );
+    } else {
+      next.status = input.outcome;
+      this.audit.transition({
+        entityType: "PostgraduateApplication",
+        entityId: next.applicationId,
+        fromStatus: "UnderReview",
+        toStatus: next.status,
+        actorUserId: principal.userId,
+        sourceId: "FR-012/BR-007",
+        reasonCode: input.outcome,
+      });
+    }
+    this.applications.set(next.applicationId, next);
+    this.notifications.enqueue({
+      applicationId: next.applicationId,
+      personId: next.personId,
+      event: input.outcome === "Accepted"
+        ? "ApplicationAccepted"
+        : input.outcome === "Rejected"
+          ? "ApplicationRejected"
+          : "ApplicationConditionallyAccepted",
+    });
+    return copyApplication(next);
+  }
+
+  /** FR-012/BR-008: only cleared conditional approvals become Accepted. */
+  clearAdmissionConditions(
+    applicationId: string,
+    input: { clearanceEvidence: string },
+    principal: AuthorizationPrincipal,
+  ): PostgraduateApplication {
+    const current = this.requireApplication(applicationId);
+    this.authorization.assertAuthority(principal, current.institutionId, current.programId);
+    if (
+      current.status !== "UnderReview" ||
+      current.decision?.outcome !== "ConditionalAccepted" ||
+      current.decision.conditionsClearedAt
+    ) {
+      throw this.conflict("FR-012: no outstanding conditional acceptance to clear");
+    }
+    const evidence = this.required(input?.clearanceEvidence, "clearanceEvidence");
+    const now = new Date().toISOString();
+    const next = copyApplication(current);
+    next.status = "Accepted";
+    next.decision!.conditionsClearedAt = now;
+    next.reviews.push({
+      applicationReviewId: randomUUID(),
+      applicationId: next.applicationId,
+      reviewerUserId: principal.userId,
+      reviewType: "Final",
+      decision: "Approve",
+      comments: evidence,
+      reviewedAt: now,
+    });
+    this.audit.transition({
+      entityType: "PostgraduateApplication",
+      entityId: next.applicationId,
+      fromStatus: "UnderReview",
+      toStatus: "Accepted",
+      actorUserId: principal.userId,
+      sourceId: "FR-012/BR-008",
+      reasonCode: "ConditionalAcceptanceCleared",
+    });
+    this.applications.set(next.applicationId, next);
+    this.notifications.enqueue({
+      applicationId: next.applicationId,
+      personId: next.personId,
+      event: "AdmissionConditionsCleared",
+    });
     return copyApplication(next);
   }
 
@@ -295,13 +522,9 @@ export class ApplicationWorkflowService {
     principal: AuthorizationPrincipal,
   ): PostgraduateApplication {
     const current = this.requireApplication(applicationId);
-    this.authorization.assertOfficer(
-      principal,
-      current.institutionId,
-      current.programId,
-    );
-    if (current.status !== "UnderReview") {
-      throw this.conflict("BR-041: NeedMoreInfo requires UnderReview");
+    this.assertAssignedReviewer(current, principal);
+    if (current.status !== "UnderReview" || current.decision) {
+      throw this.conflict("BR-041: NeedMoreInfo requires undecided UnderReview");
     }
     const reason = this.required(input?.reason, "reason");
     if (!input || typeof input !== "object") {
@@ -463,6 +686,64 @@ export class ApplicationWorkflowService {
           record.institutionId === institution && record.programId === program,
       )
       .map(copyApplication);
+  }
+
+  /** BR-041/NFR-021: effective decision clock excludes NeedMoreInfo pauses. */
+  getReviewTiming(
+    applicationId: string,
+    principal: AuthorizationPrincipal,
+    at = new Date(),
+  ): ApplicationReviewTiming {
+    const current = this.getOne(applicationId, principal);
+    if (!current.firstSubmittedAt) {
+      throw this.conflict("FR-011: application has never been submitted");
+    }
+    const firstMs = Date.parse(current.firstSubmittedAt);
+    const effectiveEnd = current.decision?.decidedAt ?? at.toISOString();
+    const endMs = Date.parse(effectiveEnd);
+    const completeIntervals = current.needMoreInfoIntervals;
+    const liveIntervals = current.needMoreInfoAt
+      ? [...completeIntervals, { from: current.needMoreInfoAt, to: effectiveEnd }]
+      : completeIntervals;
+    let excluded = 0;
+    for (const interval of liveIntervals) {
+      const from = Math.max(firstMs, Date.parse(interval.from));
+      const to = Math.min(endMs, Date.parse(interval.to));
+      excluded += Math.max(0, to - from);
+    }
+    return {
+      firstSubmittedAt: current.firstSubmittedAt,
+      decidedAt: current.decision?.decidedAt,
+      calculatedAt: at.toISOString(),
+      excludedNeedMoreInfoMs: excluded,
+      effectiveDecisionMs: Math.max(0, endMs - firstMs - excluded),
+    };
+  }
+
+  listAssignedToMe(
+    institutionId: string,
+    programId: string,
+    principal: AuthorizationPrincipal,
+  ): PostgraduateApplication[] {
+    return this.listForOfficer(institutionId, programId, principal)
+      .filter((record) => record.reviewAssignedToUserId === principal.userId);
+  }
+
+  private assertAssignedReviewer(
+    application: PostgraduateApplication,
+    principal: AuthorizationPrincipal,
+  ): void {
+    this.authorization.assertOfficer(principal, application.institutionId, application.programId);
+    if (!application.reviewAssignedToUserId || application.reviewAssignedToUserId !== principal.userId) {
+      throw this.forbidden("FR-011/BR-041: review is assigned to another officer");
+    }
+  }
+
+  private optionalText(value: unknown, field: string): string | undefined {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value !== "string") throw this.invalid(`FR-011/FR-012: ${field} must be text`);
+    const trimmed = value.trim();
+    return trimmed || undefined;
   }
 
   private async assertComplete(

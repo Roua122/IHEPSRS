@@ -24,6 +24,19 @@ export class ApplicationsController {
     return this.workflow.listMine(request.authorizationPrincipal!);
   }
 
+  @Get("review/assigned")
+  listAssignedToMe(
+    @Query("institutionId") institutionId: string,
+    @Query("programId") programId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.workflow.listAssignedToMe(
+      institutionId,
+      programId,
+      request.authorizationPrincipal!,
+    );
+  }
+
   @Get("officer")
   listForOfficer(
     @Query("institutionId") institutionId: string,
@@ -86,6 +99,61 @@ export class ApplicationsController {
     @Req() request: AuthorizationAwareRequest,
   ) {
     return this.workflow.startReview(applicationId, request.authorizationPrincipal!);
+  }
+
+  /** TASK-PG-003 / FR-011: recommendation and notes are reviewer-only. */
+  @Post(":applicationId/review")
+  recordReview(
+    @Param("applicationId") applicationId: string,
+    @Body()
+    body: {
+      reviewType: "Eligibility" | "Academic";
+      recommendation?: "Approve" | "Reject";
+      comments?: string;
+    },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.workflow.recordReview(
+      applicationId,
+      body,
+      request.authorizationPrincipal!,
+    );
+  }
+
+  /** TASK-PG-003 / FR-012: PGA alone makes a formal decision. */
+  @Post(":applicationId/decision")
+  decide(
+    @Param("applicationId") applicationId: string,
+    @Body()
+    body: {
+      outcome: "Accepted" | "Rejected" | "ConditionalAccepted";
+      reason: string;
+      conditions?: string;
+    },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.workflow.decide(applicationId, body, request.authorizationPrincipal!);
+  }
+
+  @Post(":applicationId/decision/conditions/clear")
+  clearAdmissionConditions(
+    @Param("applicationId") applicationId: string,
+    @Body() body: { clearanceEvidence: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.workflow.clearAdmissionConditions(
+      applicationId,
+      body,
+      request.authorizationPrincipal!,
+    );
+  }
+
+  @Get(":applicationId/review/timing")
+  reviewTiming(
+    @Param("applicationId") applicationId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.workflow.getReviewTiming(applicationId, request.authorizationPrincipal!);
   }
 
   @Post(":applicationId/review/need-more-info")

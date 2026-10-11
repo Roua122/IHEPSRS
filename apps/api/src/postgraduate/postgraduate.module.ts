@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 
+import { ConfigurationModule } from "../config/configuration.module";
 import { IdentityModule } from "../identity/identity.module";
 import { ResearchModule } from "../research/research.module";
 import { ApplicantsController } from "./controllers/applicants.controller";
@@ -13,7 +14,7 @@ import { ApplicationNotificationOutboxService } from "./domain/application-notif
 import { ApplicationWorkflowService } from "./domain/application-workflow.service";
 
 @Module({
-  imports: [IdentityModule, ResearchModule],
+  imports: [ConfigurationModule, IdentityModule, ResearchModule],
   controllers: [ApplicantsController, ApplicationsController],
   providers: [
     AcademicAuthorizationService,

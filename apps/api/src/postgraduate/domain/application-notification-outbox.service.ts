@@ -5,7 +5,14 @@ export interface PendingApplicationNotification {
   notificationId: string;
   applicationId: string;
   personId: string;
-  event: "ApplicationSubmitted" | "ApplicationResubmitted" | "NeedMoreInfo";
+  event:
+    | "ApplicationSubmitted"
+    | "ApplicationResubmitted"
+    | "NeedMoreInfo"
+    | "ApplicationAccepted"
+    | "ApplicationRejected"
+    | "ApplicationConditionallyAccepted"
+    | "AdmissionConditionsCleared";
   queuedAt: string;
   deliveryStatus: "Pending";
 }
