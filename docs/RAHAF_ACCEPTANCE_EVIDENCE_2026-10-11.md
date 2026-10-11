@@ -1,5 +1,51 @@
 # Rahaf (رهف عادل) — Academic Prototype Verification Record
 
+## Update after merged PR #23 — 2026-10-11
+
+**Current reviewed main:** `175d20035eb3fd9b13816a1ab71a06314ff20fea`.
+**Task disposition:** focused prototype checks passed; **0/8 tasks formally signed off**. This updated section supersedes the older "NOT RUN" entries and SHA below, which remain as historical evidence of the earlier snapshot.
+
+### Merged work and verification
+
+- Initial Rahaf implementation: [PR #16](https://github.com/Roua122/IHEPSRS/pull/16).
+- PG001 test-to-CI integration: [PR #22](https://github.com/Roua122/IHEPSRS/pull/22), merged into `main`.
+- TH003/TH004 focused test-to-CI integration: [PR #23](https://github.com/Roua122/IHEPSRS/pull/23), merged into `main`.
+- [CI](https://github.com/Roua122/IHEPSRS/actions/runs/38168680187) and [Security scans](https://github.com/Roua122/IHEPSRS/actions/runs/38168680183) for merge SHA `175d200` are **completed successfully**; these are automated build/security-scan results, not proof of production integration readiness.
+
+| User-executed local command | Verified local result | Interpretation |
+| --- | --- | --- |
+| `pnpm --filter @ihepsrs/api pg001:check` | PASS, 17 focused checks | Applicant/Person and trusted SIS model logic; no live upstream attestation |
+| `pnpm --filter @ihepsrs/api pg-workflows:check` | PASS, 21 checks | PG002–PG005 domain rules with shared adapters/test doubles |
+| `pnpm --filter @ihepsrs/api pg-institutions:check` | PASS, 7 checks | PG/institutions canonical scope and reference gates |
+| `pnpm --filter @ihepsrs/api thesis:check` | PASS, TH002 owner checks plus 21 TH001↔TH002 integration checks | TH002 belongs to Duaa, not Rahaf; exercises a limited TH001 boundary |
+| `pnpm --filter @ihepsrs/api rahaf-thesis:check` | PASS, 29 checks | TH003/TH004 proposal/submission gates using **test doubles only** |
+| `pnpm --filter @ihepsrs/api thesis-defense:check` | PASS, 35 defense checks plus 23 eligibility checks | Supporting scenario includes Duaa's tasks; not Rahaf task-level sign-off |
+| `pnpm quality` | PASS | Prettier, typechecks and builds for the tested local branch |
+
+### Eight Rahaf-owned tasks: current review disposition
+
+| Task | Confirmed prototype evidence | Remaining acceptance blocker |
+| --- | --- | --- |
+| PG001 | 17 focused checks and CI test step merged | HTTP/authenticated API scenarios, canonical SIS trust boundary, independent approval |
+| PG002 | 21 shared workflow and 7 canonical registry checks | Trusted DocumentLink/scan service, notification delivery or formally approved mock boundary, durable transaction/outbox, API acceptance |
+| PG003 | Staff review, NeedMoreInfo, resubmission invariants tested | HTTP scope/role tests, proposed conditional admission ADR decision, durable records/notifications |
+| PG004 | Admission decision, immutable snapshot and enrollment handoff guards tested | ADR approval for conditional acceptance, HTTP negative-path acceptance, durable decision/audit |
+| PG005 | Enrollment/extension/status history, policy gates and fail-closed degree decision tested | Canonical approved policy, verified degree-readiness source, BR053 program-change decision, transactional repository |
+| TH001 | Draft/Registered, supervisor linkage, immutable versions and history exercised | Trusted DocumentLink, durable Thesis aggregate/audit, full scoped HTTP acceptance |
+| TH003 | 29-case combined test covers proposal authorization, revisions, supervisor and committee approval | Real classified plan DocumentLink; HTTP acceptance; durable transactions |
+| TH004 | 29-case combined test covers final document, supervisor confirmation and scoped programme evidence | Real final DocumentLink and ProgramRequirements integration, durable transaction, HTTP E2E |
+
+### Do not overstate coverage
+
+- The shared Document, Notification, SIS, and programme-requirements interfaces must not be substituted with browser-provided `scan=clean`, `requirementsMet=true`, or completion flags.
+- Current process-memory maps, hash-chain prototype audit and test-double integrations are **not** evidence of production-grade durability, storage, malware scanning or enterprise service integration.
+- No task should be marked DONE merely because tests passed. Keep owner/reviewer sign-off and any allowed prototype exclusions explicit; do not alter tasks owned by Khulood or Amah.
+- The older evidence snapshot below is preserved for traceability, not treated as the current status.
+
+---
+
+### Historical verification snapshot (before PR #22 and PR #23)
+
 **Date:** 2026-10-11  
 **Repository:** `Roua122/IHEPSRS`  
 **Reviewed main SHA:** `0fd3688b60f64937748005a5571bf29c5e87b029`  
