@@ -8,6 +8,7 @@ import { HealthController } from "./health.controller";
 import { IdentityModule } from "./identity/identity.module";
 import { ResearchModule } from "./research/research.module";
 import { PostgraduateModule } from "./postgraduate/postgraduate.module";
+import { ThesisModule } from "./thesis/thesis.module";
 import { PublicationsModule } from "./publications/publications.module";
 
 @Module({
@@ -26,6 +27,7 @@ import { PublicationsModule } from "./publications/publications.module";
     ResearchModule,
     PublicationsModule,
     PostgraduateModule,
+    ThesisModule,
   ],
   controllers: [HealthController],
 })
