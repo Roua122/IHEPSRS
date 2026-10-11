@@ -83,6 +83,8 @@ export interface ApplicationReview {
   applicationReviewId: string;
   applicationId: string;
   reviewerUserId: string;
+  /** Immutable submission iteration reviewed; prevents stale approvals after BR-041 resubmission. */
+  submissionSnapshotId: string;
   reviewType: "Eligibility" | "Academic" | "Final";
   decision?: "Approve" | "Reject" | "NeedMoreInfo";
   comments?: string;

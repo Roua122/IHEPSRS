@@ -391,6 +391,7 @@ export class ApplicationWorkflowService {
       applicationReviewId: randomUUID(),
       applicationId: next.applicationId,
       reviewerUserId: principal.userId,
+      submissionSnapshotId: next.submissions.at(-1)!.snapshotId,
       reviewType: input.reviewType,
       decision: input.recommendation,
       comments,
@@ -424,16 +425,19 @@ export class ApplicationWorkflowService {
         "FR-012: only an undecided UnderReview application can be decided",
       );
     }
+    const latestSnapshotId = current.submissions.at(-1)?.snapshotId;
     if (
+      !latestSnapshotId ||
       !current.reviewAssignedToUserId ||
       !current.reviews.some(
         (entry) =>
           entry.reviewerUserId === current.reviewAssignedToUserId &&
+          entry.submissionSnapshotId === latestSnapshotId &&
           entry.reviewType !== "Final",
       )
     ) {
       throw this.conflict(
-        "FR-011: an assigned reviewer must record the review first",
+        "FR-011/BR-041: the assigned reviewer must review the latest submission",
       );
     }
     if (
@@ -473,6 +477,7 @@ export class ApplicationWorkflowService {
       applicationReviewId: randomUUID(),
       applicationId: next.applicationId,
       reviewerUserId: principal.userId,
+      submissionSnapshotId: next.submissions.at(-1)!.snapshotId,
       reviewType: "Final",
       decision: input.outcome === "Rejected" ? "Reject" : "Approve",
       comments: reason,
@@ -545,6 +550,7 @@ export class ApplicationWorkflowService {
       applicationReviewId: randomUUID(),
       applicationId: next.applicationId,
       reviewerUserId: principal.userId,
+      submissionSnapshotId: next.submissions.at(-1)!.snapshotId,
       reviewType: "Final",
       decision: "Approve",
       comments: evidence,
@@ -624,6 +630,7 @@ export class ApplicationWorkflowService {
       applicationReviewId: randomUUID(),
       applicationId: next.applicationId,
       reviewerUserId: principal.userId,
+      submissionSnapshotId: next.submissions.at(-1)!.snapshotId,
       reviewType: "Eligibility",
       decision: "NeedMoreInfo",
       comments: reason,
@@ -737,19 +744,16 @@ export class ApplicationWorkflowService {
     principal: AuthorizationPrincipal,
   ): PostgraduateApplication {
     const record = this.requireApplication(applicationId);
-    const applicantAccess =
-      principal?.authenticated &&
-      !!principal.personId &&
-      this.sameCanonicalPerson(principal.personId, record.personId);
-    if (
-      !applicantAccess &&
-      !this.authorization.canRead(
-        principal,
-        record.personId,
-        record.institutionId,
-        record.programId,
-      )
-    ) {
+    // A correctly scoped officer may not have a canonical Applicant/Person
+    // record. Check staff/direct-owner grants first; only resolve Person aliases
+    // as a fallback for an authenticated applicant (FR-010/NFR-025).
+    const allowed = this.authorization.canRead(
+      principal,
+      record.personId,
+      record.institutionId,
+      record.programId,
+    );
+    if (!allowed && !this.isCanonicalOwner(principal, record.personId)) {
       throw this.forbidden("FR-010: application is outside user scope");
     }
     return copyApplication(record);
@@ -1030,6 +1034,21 @@ export class ApplicationWorkflowService {
       this.persons.resolveCanonicalPersonId(first) ===
       this.persons.resolveCanonicalPersonId(second)
     );
+  }
+
+  private isCanonicalOwner(
+    principal: AuthorizationPrincipal,
+    expectedPersonId: string,
+  ): boolean {
+    if (!principal?.authenticated || !principal.personId) return false;
+    try {
+      return this.sameCanonicalPerson(principal.personId, expectedPersonId);
+    } catch (error) {
+      if (error instanceof AppException && error.code === ErrorCode.NotFound) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   private today(): string {

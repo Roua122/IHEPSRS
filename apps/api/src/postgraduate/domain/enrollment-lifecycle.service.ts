@@ -716,18 +716,13 @@ export class EnrollmentLifecycleService {
         current.programId,
       );
     } else if (
-      !(
-        principal?.authenticated &&
-        principal.personId &&
-        this.persons.resolveCanonicalPersonId(principal.personId) ===
-          this.persons.resolveCanonicalPersonId(current.personId)
-      ) &&
       !this.authorization.canRead(
         principal,
         current.personId,
         current.institutionId,
         current.programId,
-      )
+      ) &&
+      !this.isCanonicalOwner(principal, current.personId)
     ) {
       throw new AppException({
         code: ErrorCode.Forbidden,
@@ -736,6 +731,24 @@ export class EnrollmentLifecycleService {
       });
     }
     return current;
+  }
+
+  private isCanonicalOwner(
+    principal: AuthorizationPrincipal,
+    personId: string,
+  ): boolean {
+    if (!principal?.authenticated || !principal.personId) return false;
+    try {
+      return (
+        this.persons.resolveCanonicalPersonId(principal.personId) ===
+        this.persons.resolveCanonicalPersonId(personId)
+      );
+    } catch (error) {
+      if (error instanceof AppException && error.code === ErrorCode.NotFound) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   private months(value: number): number {
