@@ -10,7 +10,7 @@
 - GitHub `main` checked on 2026-10-11: `8a2aa589c15a31bf06785fd7ee60543428eb6b7b`.
 - [CI run 38169251584](https://github.com/Roua122/IHEPSRS/actions/runs/38169251584): `success`, same `main` SHA.
 - [Security scans run 38169251569](https://github.com/Roua122/IHEPSRS/actions/runs/38169251569): `success`, same `main` SHA. A successful workflow is **not** by itself proof of every NFR, a complete secrets review, or production security approval.
-- **Local code SHA tested:** NOT CAPTURED. Before equating the results below with `main`, capture `git rev-parse HEAD` and `git status --short` from the tested checkout and record them here.
+- **Local code SHA tested:** 8a2aa589c15a31bf06785fd7ee60543428eb6b7b (operator-reported local tests, 2026-10-11; standalone scripts untracked).
 - **Test environment:** Local NestJS API, `http://127.0.0.1:3000/api`. Test reports supplied by the operator in the project conversation, not independently observed by the reviewer on the operator's machine. No credentials or tokens recorded.
 - The 3 standalone HTTP scripts were run from the project root and are not claimed to be in `main` or CI. They must be added to a controlled test location if reproducible CI execution is desired.
 
