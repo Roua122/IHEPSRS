@@ -54,6 +54,13 @@ export class AcademicReferenceService {
     };
   }
 
+  /** Cohort IDs must be supplied by a trusted registry, not caller input. */
+  hasTrustedCohort(programId: string, cohortId: string): boolean {
+    return [...this.cycles.values()].some(
+      (cycle) => cycle.programId === programId && cycle.cohortId === cohortId,
+    );
+  }
+
   getCycle(admissionCycleId: string): AdmissionCycleReference {
     const record = this.cycles.get(admissionCycleId);
     if (!record) throw this.notFound("AdmissionCycle", admissionCycleId);

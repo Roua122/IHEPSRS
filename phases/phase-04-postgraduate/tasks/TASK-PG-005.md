@@ -57,3 +57,22 @@ Owner: رهف عادل
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+## Implementation Handoff — 2026-10-11 (WIP; not accepted)
+
+Implemented in `apps/api/src/postgraduate`:
+- `EnrollmentLifecycleService` with accepted-decision/snapshot/SIS evidence gate (`PG004`, `BR-003/008/009`), scoped reads/writes, UTC dates, explicit state operations, immutable decision/history copies (`FR-013/045`, `BR-053`).
+- `EnrollmentPolicyService` for explicit, approved, versioned Program/Cohort-scoped local policy records. No invented policy limits; policy must be approved before enrollment (`FR-043`, `BR-052/062`). Approval is PGA-scoped and forbids retroactive effective dates.
+- Suspension/resume/withdrawal/cancellation/re-enrollment and extension/exception operations with reason and audit (`UC-21`, `BR-052/053`). Original withdrawn enrollments are never overwritten by re-enrollment.
+- `DegreeDecision` operation **fails closed** until trusted `ProgramRequirements` / `Thesis` / `Holds` gateway is connected (`BR-054`). Never accept these readiness flags from HTTP input.
+- As-of **status-history** response (`FR-045`) only; NOT an enterprise immutable reporting snapshot.
+
+Integration blockers before Definition of Done / handoff to integration test owner:
+1. **NFR-014**: Enrollment, policy configuration, DegreeDecision, audit and status history currently use in-memory Maps/arrays. Replace with transactionally persisted repository, unique live-enrollment constraint, and shared audit/outbox; current approach is NOT durable or multi-instance safe.
+2. **FR-043/BR-062**: Replace mock scoped policy store with team's canonical `PolicyConfiguration` version/approval registry. `normalStudyMonths/maxStudyMonths/maxExtensions/maxExtensionMonths` schema and precedence are provisional, recorded in `decisions/architecture/ADR-PG-005-enrollment-policy.md` for approval. No policy is seeded by default.
+3. **BR-054**: Connect `DegreeReadinessGateway` to verified Thesis + ProgramRequirements + Holds sources. Endpoint refuses approval until this integration exists.
+4. **BR-053**: Program Change and documented BR-009 duplicate-enrollment exemptions require a team-approved decision/transfer contract and cannot be silently inferred from the supplied reference code. No unsafe generic status PATCH was provided.
+5. **UC-06**: Supervisor assignment belongs to linked thesis workflow; coordinate TH tasks without inventing an assignment API here.
+6. No tests added/run in this handoff: the team must still cover TC-FR-013/043/045, TC-BR-003/008/009/052/053/054/062 and TC-NFR-014/021 before closing the task. Shared tests may be executed by the designated reviewer, but the task's Definition of Done remains open.
+
+The current implementation is **not equivalent to an integrated production or accepted PG005**. Do not mark task `DONE` until dependencies, verification and ADR review are finished.

@@ -35,6 +35,8 @@ export interface AdmissionCycleReference {
   applicationOpenAt: string;
   applicationCloseAt: string;
   intakeStartDate: string;
+  /** Optional trusted cohort reference; AdmissionCycle ID is NOT a cohort ID. */
+  cohortId?: string;
   status: "Planned" | "Open" | "Closed" | "Archived";
 }
 
@@ -121,12 +123,57 @@ export interface PostgraduateApplication {
   decision?: AdmissionDecision;
 }
 
+/** FR-043 / BR-052: no implicit normative values. */
+export interface EnrollmentStudyLimits {
+  normalStudyMonths: number;
+  maxStudyMonths: number;
+  maxExtensions: number;
+  maxExtensionMonths: number;
+}
+
+export interface EnrollmentPolicyConfiguration {
+  policyId: string;
+  policyKey: "EnrollmentStudyLimits";
+  scopeType: "Program" | "Cohort";
+  scopeId: string;
+  programId: string;
+  versionNo: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  approvedByUserId: string;
+  approvedAt: string;
+  status: "Approved";
+  value: EnrollmentStudyLimits;
+}
+
+/** BR-054: operationally final and distinct from an Enrollment status. */
+export interface DegreeDecisionRecord {
+  degreeDecisionId: string;
+  enrollmentId: string;
+  approvedByUserId: string;
+  approvedAt: string;
+  sourceEvidenceRefs: readonly string[];
+  policyVersionId: string;
+}
+
 export interface EnrollmentDecisionHistory {
   decisionId: string;
   decidedAt: string;
   decidedByUserId: string;
-  operation: "Suspend" | "Resume" | "Withdraw" | "Cancel" | "Exception";
+  operation:
+    | "Activate"
+    | "Suspend"
+    | "Resume"
+    | "Withdraw"
+    | "Cancel"
+    | "Extend"
+    | "Exception"
+    | "ReEnroll"
+    | "DegreeApproved";
   reason: string;
+  policyVersionId: string;
+  months?: number;
+  referenceId?: string;
 }
 
 export interface EnrollmentRecord {
@@ -137,12 +184,22 @@ export interface EnrollmentRecord {
   programId: string;
   applicationId: string;
   admissionCycleId: string;
+  admissionDecisionId: string;
+  admissionPolicyVersionId: string;
+  submissionSnapshotId: string;
+  submittedProgramVersionNo: number;
   startDate: string;
   academicYear: string;
   policyVersionId: string;
+  policyId: string;
+  policyValueSnapshot: EnrollmentStudyLimits;
   status: EnrollmentStatus;
   createdAt: string;
+  plannedStudyEndDate: string;
+  pendingValidationReason?: "PROGRAM_NOT_EFFECTIVE_AT_START_DATE";
+  priorEnrollmentId?: string;
   completionDate?: string;
+  degreeDecision?: DegreeDecisionRecord;
   decisions: EnrollmentDecisionHistory[];
 }
 
