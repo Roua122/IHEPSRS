@@ -69,6 +69,9 @@ jobs:
       - name: Thesis supervisor checks
         run: pnpm --filter @ihepsrs/api thesis:check
 
+      - name: TH003-TH004 focused proposal and submission checks
+        run: pnpm --filter @ihepsrs/api rahaf-thesis:check
+
       - name: TH005-TH008 defense workflow checks
         run: pnpm --filter @ihepsrs/api thesis-defense:check
 
