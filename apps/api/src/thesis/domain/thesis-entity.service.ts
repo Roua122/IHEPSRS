@@ -297,9 +297,11 @@ export class ThesisEntityService {
     const proposalId = this.required(input?.proposalVersionId, "proposalVersionId");
     this.proposalVersion(current, proposalId, true);
     const reason = this.required(input?.reason, "reason");
+    // A supervisor may recommend revision instead of approval.  The committee
+    // must be able to formally return that proposal for a new version; only
+    // the *approval* path requires a positive supervisor recommendation.
     if (!current.proposalReviews.some((item) =>
-      item.proposalVersionId === proposalId && item.stage === "Supervisor" &&
-      item.outcome === "Approved")) {
+      item.proposalVersionId === proposalId && item.stage === "Supervisor")) {
       throw this.conflict("UC-07: missing supervisor-review evidence");
     }
     const reviewedAt = new Date().toISOString();

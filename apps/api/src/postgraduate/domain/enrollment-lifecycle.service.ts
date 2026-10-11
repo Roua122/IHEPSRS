@@ -332,6 +332,11 @@ export class EnrollmentLifecycleService {
       !evidence.evidenceRefs.length || evidence.evidenceRefs.some((ref) => !ref.trim())) {
       throw this.conflict("BR-054: program/thesis/Holds evidence is incomplete");
     }
+    // Trusted readiness checks are async: another authority could have
+    // completed/cancelled the enrollment while this call was pending.
+    if (this.enrollments.get(id) !== current || this.degreeDecisions.has(id)) {
+      throw this.conflict("NFR-014/BR-054: enrollment changed during degree verification; retry");
+    }
     const now = new Date().toISOString();
     const decision: DegreeDecisionRecord = {
       degreeDecisionId: randomUUID(),

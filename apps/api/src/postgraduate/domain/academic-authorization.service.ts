@@ -83,27 +83,35 @@ export class AcademicAuthorizationService {
       policy,
     );
     if (!decision.allowed) throw this.deny(decision.reason ?? "ACCESS_DENIED");
-    // Restrict program-delegated assignments when program DataScope claims exist.
-    const assignment = principal.roleAssignments.find(
+    // The general policy decision checks the institution, not the Program
+    // scope. Check *all* eligible assignments here: selecting only the first
+    // matching role can both reject legitimate users and bypass a restricted
+    // assignment by accidentally selecting a different unrestricted one.
+    // PGO/PGA are institution/program roles, never cross-institution grants.
+    const at = Date.now();
+    const scopedAssignments = principal.roleAssignments.filter(
       (candidate) =>
-        candidate.roleCode === decision.matchedRoleCode &&
-        (candidate.institutionId === institutionId ||
-          candidate.institutionId === null) &&
-        candidate.validFrom <= new Date().toISOString() &&
-        (!candidate.validTo || candidate.validTo > new Date().toISOString()),
+        policy.allowedRoleCodes.some((role) => role === candidate.roleCode) &&
+        candidate.institutionId === institutionId &&
+        Number.isFinite(Date.parse(candidate.validFrom)) &&
+        Date.parse(candidate.validFrom) <= at &&
+        (!candidate.validTo ||
+          (Number.isFinite(Date.parse(candidate.validTo)) &&
+            at < Date.parse(candidate.validTo))),
     );
-    if (!assignment) throw this.deny("INACTIVE_ASSIGNMENT");
-    const programClaims = principal.dataScopes?.filter(
-      (scope) =>
-        scope.assignmentId === assignment.assignmentId &&
-        scope.type === "Program",
-    );
-    if (
-      programClaims?.length &&
-      !programClaims.some((scope) => scope.id === programId)
-    ) {
-      throw this.deny("PROGRAM_SCOPE_MISMATCH");
-    }
+    if (!scopedAssignments.length) throw this.deny("INACTIVE_ASSIGNMENT");
+    const permitted = scopedAssignments.some((assignment) => {
+      const programClaims = principal.dataScopes?.filter(
+        (scope) =>
+          scope.assignmentId === assignment.assignmentId &&
+          scope.type === "Program",
+      );
+      return (
+        !programClaims?.length ||
+        programClaims.some((scope) => scope.id === programId)
+      );
+    });
+    if (!permitted) throw this.deny("PROGRAM_SCOPE_MISMATCH");
   }
 
   private deny(reason: string): AppException {

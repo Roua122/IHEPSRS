@@ -233,6 +233,7 @@ export class ApplicationWorkflowService {
       applicantPersonId: current.personId,
       institutionId: current.institutionId,
     });
+    this.assertUnchanged(applicationId, current);
     const next = copyApplication(current);
     const previousVersions = next.attachedDocuments.filter(
       (link) => link.purpose === purpose,
@@ -270,6 +271,7 @@ export class ApplicationWorkflowService {
       throw this.conflict("FR-010: only Draft can be submitted initially");
     }
     await this.assertComplete(current, principal);
+    this.assertUnchanged(applicationId, current);
     const now = new Date().toISOString();
     const next = copyApplication(current);
     next.status = "Submitted";
@@ -623,6 +625,7 @@ export class ApplicationWorkflowService {
       }
     }
     await this.assertComplete(current, principal, true);
+    this.assertUnchanged(applicationId, current);
     const now = new Date().toISOString();
     const next = copyApplication(current);
     next.status = "Submitted";
@@ -877,6 +880,18 @@ export class ApplicationWorkflowService {
         .map((link) => ({ ...link })),
       iteration: application.submissions.length + 1,
     };
+  }
+
+  /** Guard against overwriting a concurrent operation after external awaits.
+   * The team's transactional repository must enforce this across instances.
+   */
+  private assertUnchanged(
+    applicationId: string,
+    expected: PostgraduateApplication,
+  ): void {
+    if (this.applications.get(applicationId) !== expected) {
+      throw this.conflict("NFR-014: application changed during external verification; retry");
+    }
   }
 
   private requireOwn(
