@@ -25,7 +25,9 @@ export interface DegreeReadinessQuery {
 }
 
 export abstract class DegreeReadinessGateway {
-  abstract assess(query: DegreeReadinessQuery): Promise<DegreeReadinessEvidence>;
+  abstract assess(
+    query: DegreeReadinessQuery,
+  ): Promise<DegreeReadinessEvidence>;
 }
 
 /** Fail closed until verified ProgramRequirements, Thesis and Holds adapters exist. */

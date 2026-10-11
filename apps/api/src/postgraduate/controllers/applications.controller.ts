@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from "@nestjs/common";
 
 import type { AuthorizationAwareRequest } from "../../identity/authorization/authorization.guard";
 import { AuthenticatedOnly } from "../../identity/authentication/route-access.decorator";
@@ -90,7 +99,10 @@ export class ApplicationsController {
     @Param("applicationId") applicationId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.workflow.submitDraft(applicationId, request.authorizationPrincipal!);
+    return this.workflow.submitDraft(
+      applicationId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":applicationId/review/start")
@@ -98,7 +110,10 @@ export class ApplicationsController {
     @Param("applicationId") applicationId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.workflow.startReview(applicationId, request.authorizationPrincipal!);
+    return this.workflow.startReview(
+      applicationId,
+      request.authorizationPrincipal!,
+    );
   }
 
   /** TASK-PG-003 / FR-011: recommendation and notes are reviewer-only. */
@@ -132,7 +147,11 @@ export class ApplicationsController {
     },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.workflow.decide(applicationId, body, request.authorizationPrincipal!);
+    return this.workflow.decide(
+      applicationId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":applicationId/decision/conditions/clear")
@@ -153,7 +172,10 @@ export class ApplicationsController {
     @Param("applicationId") applicationId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.workflow.getReviewTiming(applicationId, request.authorizationPrincipal!);
+    return this.workflow.getReviewTiming(
+      applicationId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":applicationId/review/need-more-info")
@@ -179,6 +201,9 @@ export class ApplicationsController {
     @Param("applicationId") applicationId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.workflow.resubmit(applicationId, request.authorizationPrincipal!);
+    return this.workflow.resubmit(
+      applicationId,
+      request.authorizationPrincipal!,
+    );
   }
 }

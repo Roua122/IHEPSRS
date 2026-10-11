@@ -18,10 +18,13 @@ export type ThesisStatus =
   | "Failed"
   | "Archived";
 
-export type ThesisVersionType = "Proposal" | "Submission" | "Approved" | "Amendment";
+export type ThesisVersionType =
+  "Proposal" | "Submission" | "Approved" | "Amendment";
 
 /** The reference transition graph: no arbitrary status updates. */
-export const THESIS_TRANSITIONS: Readonly<Record<ThesisStatus, readonly ThesisStatus[]>> = {
+export const THESIS_TRANSITIONS: Readonly<
+  Record<ThesisStatus, readonly ThesisStatus[]>
+> = {
   Draft: ["Registered"],
   Registered: ["SupervisorAssigned"],
   SupervisorAssigned: ["ProposalSubmitted"],

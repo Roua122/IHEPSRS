@@ -64,17 +64,23 @@ export interface ApplicationReviewTiming {
   effectiveDecisionMs: number;
 }
 
-function copyApplication(record: PostgraduateApplication): PostgraduateApplication {
+function copyApplication(
+  record: PostgraduateApplication,
+): PostgraduateApplication {
   return {
     ...record,
     attachedDocuments: record.attachedDocuments.map((link) => ({ ...link })),
     submissions: record.submissions.map((snapshot) => ({
       ...snapshot,
       requiredDocumentPurposes: [...snapshot.requiredDocumentPurposes],
-      attachedDocuments: snapshot.attachedDocuments.map((link) => ({ ...link })),
+      attachedDocuments: snapshot.attachedDocuments.map((link) => ({
+        ...link,
+      })),
     })),
     reviews: record.reviews.map((review) => ({ ...review })),
-    needMoreInfoIntervals: record.needMoreInfoIntervals.map((range) => ({ ...range })),
+    needMoreInfoIntervals: record.needMoreInfoIntervals.map((range) => ({
+      ...range,
+    })),
     requestedFields: [...record.requestedFields],
     requestedDocumentPurposes: [...record.requestedDocumentPurposes],
     decision: record.decision ? { ...record.decision } : undefined,
@@ -108,20 +114,31 @@ export class ApplicationWorkflowService {
     principal: AuthorizationPrincipal,
   ): PostgraduateApplication {
     const person = this.applicants.getOwnPerson(principal);
-    if (person.status !== "Active" || (!person.fullNameAr && !person.fullNameEn)) {
+    if (
+      person.status !== "Active" ||
+      (!person.fullNameAr && !person.fullNameEn)
+    ) {
       throw this.invalid("FR-010/FR-041: active Person with a name required");
     }
     const programId = this.required(input?.programId, "programId");
-    const admissionCycleId = this.required(input?.admissionCycleId, "admissionCycleId");
-    const program = this.references.assertProgramEffective(programId, this.today());
+    const admissionCycleId = this.required(
+      input?.admissionCycleId,
+      "admissionCycleId",
+    );
+    const program = this.references.assertProgramEffective(
+      programId,
+      this.today(),
+    );
     this.references.assertCycleAvailable(admissionCycleId, programId);
     this.ensureNoActiveDuplicate(person.personId, programId, admissionCycleId);
 
     const application: PostgraduateApplication = {
       applicationId: randomUUID(),
       personId: person.personId,
-      studentId: this.applicants.getStudentForPerson(person.personId, program.institutionId)
-        ?.studentId,
+      studentId: this.applicants.getStudentForPerson(
+        person.personId,
+        program.institutionId,
+      )?.studentId,
       programId,
       institutionId: program.institutionId,
       admissionCycleId,
@@ -160,11 +177,16 @@ export class ApplicationWorkflowService {
       keys.length === 0 ||
       keys.some((key) => key !== "programId" && key !== "admissionCycleId")
     ) {
-      throw this.invalid("FR-010: only defined application draft fields may be changed");
+      throw this.invalid(
+        "FR-010: only defined application draft fields may be changed",
+      );
     }
     if (
       current.status === "NeedMoreInfo" &&
-      keys.some((key) => !current.requestedFields.includes(key as ApplicationEditableField))
+      keys.some(
+        (key) =>
+          !current.requestedFields.includes(key as ApplicationEditableField),
+      )
     ) {
       throw this.forbidden("BR-041: field was not requested by the reviewer");
     }
@@ -176,7 +198,10 @@ export class ApplicationWorkflowService {
       input.admissionCycleId === undefined
         ? current.admissionCycleId
         : this.required(input.admissionCycleId, "admissionCycleId");
-    const program = this.references.assertProgramEffective(programId, this.today());
+    const program = this.references.assertProgramEffective(
+      programId,
+      this.today(),
+    );
     this.references.assertCycleAvailable(admissionCycleId, programId);
     this.ensureNoActiveDuplicate(
       current.personId,
@@ -220,8 +245,12 @@ export class ApplicationWorkflowService {
     ) {
       throw this.forbidden("BR-041: document purpose was not requested");
     }
-    if (current.attachedDocuments.some((link) => link.documentId === documentId)) {
-      throw this.conflict("BR-036: document already linked to this application");
+    if (
+      current.attachedDocuments.some((link) => link.documentId === documentId)
+    ) {
+      throw this.conflict(
+        "BR-036: document already linked to this application",
+      );
     }
     // Domain adapter must confirm the actual target exists and document is
     // clean, classified, scoped to the applicant/institution and Available.
@@ -340,9 +369,14 @@ export class ApplicationWorkflowService {
     const current = this.requireApplication(applicationId);
     this.assertAssignedReviewer(current, principal);
     if (current.status !== "UnderReview" || current.decision) {
-      throw this.conflict("FR-011: review notes require an undecided UnderReview application");
+      throw this.conflict(
+        "FR-011: review notes require an undecided UnderReview application",
+      );
     }
-    if (input?.reviewType !== "Eligibility" && input?.reviewType !== "Academic") {
+    if (
+      input?.reviewType !== "Eligibility" &&
+      input?.reviewType !== "Academic"
+    ) {
       throw this.invalid("FR-011: reviewType must be Eligibility or Academic");
     }
     if (
@@ -354,10 +388,14 @@ export class ApplicationWorkflowService {
     }
     const comments = this.optionalText(input.comments, "comments");
     if (!comments && !input.recommendation) {
-      throw this.invalid("FR-011: review must include comments or a recommendation");
+      throw this.invalid(
+        "FR-011: review must include comments or a recommendation",
+      );
     }
     if (input.recommendation === "Reject" && !comments) {
-      throw this.invalid("BR-007: rejection recommendation must include a reason");
+      throw this.invalid(
+        "BR-007: rejection recommendation must include a reason",
+      );
     }
     const next = copyApplication(current);
     const review: ApplicationReview = {
@@ -392,15 +430,27 @@ export class ApplicationWorkflowService {
     principal: AuthorizationPrincipal,
   ): PostgraduateApplication {
     const current = this.requireApplication(applicationId);
-    this.authorization.assertAuthority(principal, current.institutionId, current.programId);
+    this.authorization.assertAuthority(
+      principal,
+      current.institutionId,
+      current.programId,
+    );
     if (current.status !== "UnderReview" || current.decision) {
-      throw this.conflict("FR-012: only an undecided UnderReview application can be decided");
+      throw this.conflict(
+        "FR-012: only an undecided UnderReview application can be decided",
+      );
     }
-    if (!current.reviewAssignedToUserId || !current.reviews.some(
-      (entry) => entry.reviewerUserId === current.reviewAssignedToUserId &&
-        entry.reviewType !== "Final",
-    )) {
-      throw this.conflict("FR-011: an assigned reviewer must record the review first");
+    if (
+      !current.reviewAssignedToUserId ||
+      !current.reviews.some(
+        (entry) =>
+          entry.reviewerUserId === current.reviewAssignedToUserId &&
+          entry.reviewType !== "Final",
+      )
+    ) {
+      throw this.conflict(
+        "FR-011: an assigned reviewer must record the review first",
+      );
     }
     if (
       input?.outcome !== "Accepted" &&
@@ -420,12 +470,16 @@ export class ApplicationWorkflowService {
       throw this.invalid("FR-012: conditional acceptance requires conditions");
     }
     if (input.outcome !== "ConditionalAccepted" && conditions) {
-      throw this.invalid("FR-012: conditions are only valid for conditional acceptance");
+      throw this.invalid(
+        "FR-012: conditions are only valid for conditional acceptance",
+      );
     }
     const now = new Date().toISOString();
     // BR-038/BR-062: pin the approved effective policy version at the event.
     // Do not take policyVersionId from a caller-controlled HTTP payload.
-    const policyVersionId = this.policies.getPolicyAt(new Date(now)).policyVersion;
+    const policyVersionId = this.policies.getPolicyAt(
+      new Date(now),
+    ).policyVersion;
     const next = copyApplication(current);
     next.decision = {
       decisionId: randomUUID(),
@@ -433,7 +487,8 @@ export class ApplicationWorkflowService {
       decidedByUserId: principal.userId,
       decidedAt: now,
       reason,
-      conditions: input.outcome === "ConditionalAccepted" ? conditions : undefined,
+      conditions:
+        input.outcome === "ConditionalAccepted" ? conditions : undefined,
       policyVersionId,
     };
     next.reviews.push({
@@ -471,11 +526,12 @@ export class ApplicationWorkflowService {
     this.notifications.enqueue({
       applicationId: next.applicationId,
       personId: next.personId,
-      event: input.outcome === "Accepted"
-        ? "ApplicationAccepted"
-        : input.outcome === "Rejected"
-          ? "ApplicationRejected"
-          : "ApplicationConditionallyAccepted",
+      event:
+        input.outcome === "Accepted"
+          ? "ApplicationAccepted"
+          : input.outcome === "Rejected"
+            ? "ApplicationRejected"
+            : "ApplicationConditionallyAccepted",
     });
     return copyApplication(next);
   }
@@ -487,16 +543,25 @@ export class ApplicationWorkflowService {
     principal: AuthorizationPrincipal,
   ): PostgraduateApplication {
     const current = this.requireApplication(applicationId);
-    this.authorization.assertAuthority(principal, current.institutionId, current.programId);
+    this.authorization.assertAuthority(
+      principal,
+      current.institutionId,
+      current.programId,
+    );
     if (
       current.status !== "UnderReview" ||
       current.decision?.outcome !== "ConditionalAccepted" ||
       current.decision.conditionsClearedAt
     ) {
-      throw this.conflict("FR-012: no outstanding conditional acceptance to clear");
+      throw this.conflict(
+        "FR-012: no outstanding conditional acceptance to clear",
+      );
     }
     this.admissionEvidence.assertLatestSubmissionConsistent(current);
-    const evidence = this.required(input?.clearanceEvidence, "clearanceEvidence");
+    const evidence = this.required(
+      input?.clearanceEvidence,
+      "clearanceEvidence",
+    );
     const now = new Date().toISOString();
     const next = copyApplication(current);
     next.status = "Accepted";
@@ -536,18 +601,23 @@ export class ApplicationWorkflowService {
     const current = this.requireApplication(applicationId);
     this.assertAssignedReviewer(current, principal);
     if (current.status !== "UnderReview" || current.decision) {
-      throw this.conflict("BR-041: NeedMoreInfo requires undecided UnderReview");
+      throw this.conflict(
+        "BR-041: NeedMoreInfo requires undecided UnderReview",
+      );
     }
     const reason = this.required(input?.reason, "reason");
     if (!input || typeof input !== "object") {
       throw this.invalid("BR-041: request body is required");
     }
     if (
-      (input.requestedFields !== undefined && !Array.isArray(input.requestedFields)) ||
+      (input.requestedFields !== undefined &&
+        !Array.isArray(input.requestedFields)) ||
       (input.requestedDocumentPurposes !== undefined &&
         !Array.isArray(input.requestedDocumentPurposes))
     ) {
-      throw this.invalid("BR-041: requested fields and documents must be arrays");
+      throw this.invalid(
+        "BR-041: requested fields and documents must be arrays",
+      );
     }
     const requestedFields = [...new Set(input.requestedFields ?? [])];
     if (
@@ -558,12 +628,16 @@ export class ApplicationWorkflowService {
       throw this.invalid("BR-041: unknown correctable application field");
     }
     const requestedDocumentPurposes = [
-      ...new Set((input.requestedDocumentPurposes ?? []).map((value) =>
-        this.required(value, "requestedDocumentPurpose"),
-      )),
+      ...new Set(
+        (input.requestedDocumentPurposes ?? []).map((value) =>
+          this.required(value, "requestedDocumentPurpose"),
+        ),
+      ),
     ];
     if (!requestedFields.length && !requestedDocumentPurposes.length) {
-      throw this.invalid("BR-041: specify the fields or document purposes to correct");
+      throw this.invalid(
+        "BR-041: specify the fields or document purposes to correct",
+      );
     }
     const now = new Date().toISOString();
     const next = copyApplication(current);
@@ -609,7 +683,9 @@ export class ApplicationWorkflowService {
     const previous = current.submissions[current.submissions.length - 1];
     for (const field of current.requestedFields) {
       if (!previous || previous[field] === current[field]) {
-        throw this.invalid(`BR-041: requested field ${field} has not been corrected`);
+        throw this.invalid(
+          `BR-041: requested field ${field} has not been corrected`,
+        );
       }
     }
     for (const purpose of current.requestedDocumentPurposes) {
@@ -621,7 +697,9 @@ export class ApplicationWorkflowService {
             link.linkedAt >= current.needMoreInfoAt!,
         )
       ) {
-        throw this.invalid(`BR-041: requested document ${purpose} has not been updated`);
+        throw this.invalid(
+          `BR-041: requested document ${purpose} has not been updated`,
+        );
       }
     }
     await this.assertComplete(current, principal, true);
@@ -673,7 +751,10 @@ export class ApplicationWorkflowService {
       application.institutionId,
       application.programId,
     );
-    const evidence = this.admissionEvidence.assessForEnrollment(application, target);
+    const evidence = this.admissionEvidence.assessForEnrollment(
+      application,
+      target,
+    );
     this.audit.record(
       principal.userId,
       "postgraduate.admission.enrollment-evidence.read",
@@ -710,7 +791,9 @@ export class ApplicationWorkflowService {
   listMine(principal: AuthorizationPrincipal): PostgraduateApplication[] {
     const person = this.applicants.getOwnPerson(principal);
     return [...this.applications.values()]
-      .filter((record) => this.sameCanonicalPerson(record.personId, person.personId))
+      .filter((record) =>
+        this.sameCanonicalPerson(record.personId, person.personId),
+      )
       .map(copyApplication);
   }
 
@@ -745,7 +828,10 @@ export class ApplicationWorkflowService {
     const endMs = Date.parse(effectiveEnd);
     const completeIntervals = current.needMoreInfoIntervals;
     const liveIntervals = current.needMoreInfoAt
-      ? [...completeIntervals, { from: current.needMoreInfoAt, to: effectiveEnd }]
+      ? [
+          ...completeIntervals,
+          { from: current.needMoreInfoAt, to: effectiveEnd },
+        ]
       : completeIntervals;
     let excluded = 0;
     for (const interval of liveIntervals) {
@@ -767,23 +853,34 @@ export class ApplicationWorkflowService {
     programId: string,
     principal: AuthorizationPrincipal,
   ): PostgraduateApplication[] {
-    return this.listForOfficer(institutionId, programId, principal)
-      .filter((record) => record.reviewAssignedToUserId === principal.userId);
+    return this.listForOfficer(institutionId, programId, principal).filter(
+      (record) => record.reviewAssignedToUserId === principal.userId,
+    );
   }
 
   private assertAssignedReviewer(
     application: PostgraduateApplication,
     principal: AuthorizationPrincipal,
   ): void {
-    this.authorization.assertOfficer(principal, application.institutionId, application.programId);
-    if (!application.reviewAssignedToUserId || application.reviewAssignedToUserId !== principal.userId) {
-      throw this.forbidden("FR-011/BR-041: review is assigned to another officer");
+    this.authorization.assertOfficer(
+      principal,
+      application.institutionId,
+      application.programId,
+    );
+    if (
+      !application.reviewAssignedToUserId ||
+      application.reviewAssignedToUserId !== principal.userId
+    ) {
+      throw this.forbidden(
+        "FR-011/BR-041: review is assigned to another officer",
+      );
     }
   }
 
   private optionalText(value: unknown, field: string): string | undefined {
     if (value === undefined || value === null) return undefined;
-    if (typeof value !== "string") throw this.invalid(`FR-011/FR-012: ${field} must be text`);
+    if (typeof value !== "string")
+      throw this.invalid(`FR-011/FR-012: ${field} must be text`);
     const trimmed = value.trim();
     return trimmed || undefined;
   }
@@ -800,7 +897,10 @@ export class ApplicationWorkflowService {
     if (!this.sameCanonicalPerson(person.personId, current.personId)) {
       throw this.forbidden("FR-010: application belongs to another person");
     }
-    if (person.status !== "Active" || (!person.fullNameAr && !person.fullNameEn)) {
+    if (
+      person.status !== "Active" ||
+      (!person.fullNameAr && !person.fullNameEn)
+    ) {
       throw this.invalid("BR-006: applicant Person is incomplete or inactive");
     }
     // The initial Submit needs an OPEN cycle. BR-041 resubmission is a
@@ -814,12 +914,18 @@ export class ApplicationWorkflowService {
     if (isResubmission) {
       const cycle = this.references.getCycle(current.admissionCycleId);
       if (cycle.programId !== current.programId) {
-        throw this.conflict("BR-006: application admission cycle/program mismatch");
+        throw this.conflict(
+          "BR-006: application admission cycle/program mismatch",
+        );
       }
     } else {
-      this.references.assertCycleAvailable(current.admissionCycleId, current.programId);
+      this.references.assertCycleAvailable(
+        current.admissionCycleId,
+        current.programId,
+      );
     }
-    const previousSnapshot = current.submissions[current.submissions.length - 1];
+    const previousSnapshot =
+      current.submissions[current.submissions.length - 1];
     const requiredPurposes =
       isResubmission && previousSnapshot?.programId === current.programId
         ? previousSnapshot.requiredDocumentPurposes
@@ -833,11 +939,15 @@ export class ApplicationWorkflowService {
       (purpose) => !activePurposes.has(purpose),
     );
     if (missing.length) {
-      throw this.invalid(`BR-006: missing required documents (${missing.join(", ")})`);
+      throw this.invalid(
+        `BR-006: missing required documents (${missing.join(", ")})`,
+      );
     }
     // A document may be quarantined/revoked after it was first linked.
     // Never accept a stale "Available" signal supplied by the browser.
-    for (const link of current.attachedDocuments.filter((item) => item.isActive)) {
+    for (const link of current.attachedDocuments.filter(
+      (item) => item.isActive,
+    )) {
       await this.documents.assertLinkable({
         documentId: link.documentId,
         purpose: link.purpose,
@@ -861,15 +971,15 @@ export class ApplicationWorkflowService {
       admissionCycleId: application.admissionCycleId,
       programVersionNo:
         application.submissions.length > 0 &&
-        application.submissions[application.submissions.length - 1].programId ===
-          application.programId
+        application.submissions[application.submissions.length - 1]
+          .programId === application.programId
           ? application.submissions[application.submissions.length - 1]
               .programVersionNo
           : this.references.getProgram(application.programId).versionNo,
       requiredDocumentPurposes: [
         ...(application.submissions.length > 0 &&
-        application.submissions[application.submissions.length - 1].programId ===
-          application.programId
+        application.submissions[application.submissions.length - 1]
+          .programId === application.programId
           ? application.submissions[application.submissions.length - 1]
               .requiredDocumentPurposes
           : this.references.getProgram(application.programId)
@@ -890,7 +1000,9 @@ export class ApplicationWorkflowService {
     expected: PostgraduateApplication,
   ): void {
     if (this.applications.get(applicationId) !== expected) {
-      throw this.conflict("NFR-014: application changed during external verification; retry");
+      throw this.conflict(
+        "NFR-014: application changed during external verification; retry",
+      );
     }
   }
 
@@ -934,7 +1046,9 @@ export class ApplicationWorkflowService {
     );
     if (duplicate) {
       // UC-04 permits blocking duplicate active requests; no silent duplication.
-      throw this.conflict("UC-04: another active application exists for this cycle");
+      throw this.conflict(
+        "UC-04: another active application exists for this cycle",
+      );
     }
   }
 

@@ -39,6 +39,21 @@ export class PublicationsController {
     );
   }
 
+  @Post(":id/authors/:authorId/link")
+  linkExternalAuthor(
+    @Param("id") id: string,
+    @Param("authorId") authorId: string,
+    @Body() dto: { researcherId: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.publicationService.linkExternalAuthorToResearcher(
+      id,
+      authorId,
+      dto.researcherId,
+      request.authorizationPrincipal!,
+    );
+  }
+
   @Post(":id/submit-validation")
   submitValidation(
     @Param("id") id: string,

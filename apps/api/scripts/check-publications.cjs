@@ -47,7 +47,7 @@ function principal(userId, personId, institutionId = "INST-001") {
 }
 
 function main() {
-  console.log("=== Corrective verification: Phase 07 Publications 001-003 ===");
+  console.log("=== Verification: Phase 07 Publications 001-005 ===");
   const authorization = new ResearchAuthorizationService(
     new AuthorizationDecisionService(),
   );
@@ -248,6 +248,150 @@ function main() {
     "ExternalPublicationId also resolves to one canonical Publication",
   );
 
+  // PUB-004 / FR-021 / BR-048 — affiliation snapshot at publication time
+  const affiliationPublication = service.registerPublication(
+    {
+      title: "Affiliation snapshot publication",
+      type: "Article",
+      publicationDate: "2026-05-01",
+      authors: [
+        {
+          researcherId: "RES-101",
+          authorName: "Internal Author",
+          authorOrder: 1,
+          affiliationOrgUnitId: "OU-CS",
+        },
+      ],
+    },
+    operator,
+  );
+  assert(
+    affiliationPublication.publication.authors[0].affiliationOrgUnitId ===
+      "OU-CS",
+    "TC-FR-021/PUB-004",
+    "PublicationAuthor preserves the affiliation effective at publication time",
+  );
+  expectThrow(
+    () =>
+      service.registerPublication(
+        {
+          title: "Wrong historical affiliation",
+          type: "Article",
+          publicationDate: "2026-05-01",
+          authors: [
+            {
+              researcherId: "RES-101",
+              authorName: "Internal Author",
+              authorOrder: 1,
+              affiliationOrgUnitId: "OU-NOT-EFFECTIVE",
+            },
+          ],
+        },
+        operator,
+      ),
+    "TC-BR-048/PUB-004",
+    "Internal affiliationOrgUnitId must be effective for the Researcher at publication date",
+  );
+  identity.addResearcherAffiliation("RES-101", {
+    affiliationId: "AFF-RES101-FUTURE",
+    institutionId: "INST-001",
+    orgUnitId: "OU-FUTURE",
+    roleRank: "Professor",
+    effectiveFrom: "2027-01-01",
+    sourceSystem: "IHEPSRS_TEST",
+  });
+  assert(
+    service.getPublication(
+      affiliationPublication.publication.publicationId,
+      operator,
+    ).authors[0].affiliationOrgUnitId === "OU-CS",
+    "TC-BR-048/PUB-004",
+    "Later Researcher affiliation changes do not rewrite the PublicationAuthor snapshot",
+  );
+
+  // PUB-005 / FR-042 / BR-048 / BR-055 — link external author later
+  const externalAuthor = created.publication.authors.find(
+    (author) => !author.researcherId,
+  );
+  const publicationCountBeforeLink =
+    service.getAllPublications(operator).length;
+  const linked = service.linkExternalAuthorToResearcher(
+    created.publication.publicationId,
+    externalAuthor.id,
+    "RES-102",
+    operator,
+  );
+  const linkedAuthor = linked.authors.find(
+    (author) => author.id === externalAuthor.id,
+  );
+  assert(
+    linked.publicationId === created.publication.publicationId &&
+      linkedAuthor.researcherId === "RES-102" &&
+      linkedAuthor.authorOrder === externalAuthor.authorOrder &&
+      linkedAuthor.affiliationText === externalAuthor.affiliationText &&
+      Boolean(linkedAuthor.linkedAt) &&
+      service.getAllPublications(operator).length ===
+        publicationCountBeforeLink,
+    "TC-BR-048/PUB-005",
+    "External author links to an existing Researcher without creating a new Publication or changing author order/affiliation snapshot",
+  );
+  expectThrow(
+    () =>
+      service.linkExternalAuthorToResearcher(
+        created.publication.publicationId,
+        externalAuthor.id,
+        "RES-101",
+        operator,
+      ),
+    "TC-BR-055/PUB-005",
+    "Already-linked PublicationAuthor is not silently relinked to another Person/Researcher identity",
+  );
+
+  const atomicPublication = service.registerPublication(
+    {
+      title: "Atomic external-link test",
+      type: "Conference",
+      authors: [
+        {
+          researcherId: "RES-101",
+          authorName: "Internal Author",
+          authorOrder: 1,
+          affiliationText: "University A",
+        },
+        {
+          authorName: "External Atomic Author",
+          authorOrder: 2,
+          affiliationText: "External Institute",
+        },
+      ],
+    },
+    operator,
+  ).publication;
+  const atomicAuthor = atomicPublication.authors[1];
+  const originalAuditAppend = audit.append.bind(audit);
+  audit.append = () => {
+    throw new Error("simulated audit failure");
+  };
+  expectThrow(
+    () =>
+      service.linkExternalAuthorToResearcher(
+        atomicPublication.publicationId,
+        atomicAuthor.id,
+        "RES-102",
+        operator,
+      ),
+    "TC-NFR-014/PUB-005",
+    "External-author link rolls back when audit persistence fails",
+  );
+  audit.append = originalAuditAppend;
+  assert(
+    !service
+      .getPublication(atomicPublication.publicationId, operator)
+      .authors.find((author) => author.id === atomicAuthor.id).researcherId,
+    "TC-NFR-014/PUB-005",
+    "Failed external-author link leaves no partial PublicationAuthor update",
+  );
+
   assert(
     service.getAllPublications(otherInstitution).length === 0,
     "TC-NFR-008-PUB",
@@ -259,10 +403,7 @@ function main() {
     "Publication operations commit after validation and produce an intact audit chain",
   );
 
-  console.log(
-    "NOTE PUB-004 affiliation-history implementation and PUB-005 external-author linking remain owned by Maram; this correction intentionally does not expose the PUB-005 linking endpoint.",
-  );
-  console.log("\nCorrective Phase 07 publications verification passed.");
+  console.log("\nPhase 07 Publications 001-005 verification passed.");
 }
 
 main();

@@ -165,6 +165,17 @@ export interface ResearchOutputRecord {
   completedAt?: string;
 }
 
+export interface AffiliationHistoryRecord {
+  affiliationId: string;
+  personId: string;
+  institutionId: string;
+  orgUnitId?: string;
+  roleRank?: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  sourceSystem: string;
+}
+
 // ==========================================
 // Phase 07 — Publications Contracts
 // ==========================================
@@ -219,4 +230,51 @@ export interface CreatePublicationDto {
     affiliationOrgUnitId?: string;
     affiliationText?: string;
   }>;
+}
+
+// ==========================================
+// Phase 05 — Thesis Supervision Contracts (TH-002)
+// ==========================================
+
+export type ThesisSupervisorRole = "MAIN" | "CO_SUPERVISOR";
+
+export type ThesisSupervisorAssignmentStatus = "Active" | "Ended";
+
+export interface ThesisSupervisorAssignmentRecord {
+  assignmentId: string;
+  thesisId: string;
+  researcherId: string;
+  role: ThesisSupervisorRole;
+  startDate: string;
+  endDate?: string;
+  status: ThesisSupervisorAssignmentStatus;
+  approvedByUserId: string;
+  changeReason?: string;
+  approvalDecisionId?: string;
+}
+
+/**
+ * Minimal integration contract supplied by the Thesis entity owner (TH-001).
+ * TH-002 uses it only to enforce supervision rules and does not own Thesis state.
+ */
+export interface ThesisSupervisionContext {
+  thesisId: string;
+  institutionId: string;
+  programId: string;
+  studentPersonId: string;
+}
+
+export interface SupervisorEligibilityResult {
+  thesisId: string;
+  researcherId: string;
+  role: ThesisSupervisorRole;
+  evaluatedAt: string;
+  eligible: boolean;
+  reasons: string[];
+  currentLoadPoints: number;
+  proposedLoadPoints: number;
+  limitPoints: number;
+  roleRank?: string;
+  policyId?: string;
+  policyVersionNo?: number;
 }

@@ -28,8 +28,7 @@ export abstract class ThesisSubmissionRequirementsGateway {
 
 /** Fail closed until the program-policy/requirements adapter is connected. */
 @Injectable()
-export class UnavailableThesisSubmissionRequirementsGateway
-  extends ThesisSubmissionRequirementsGateway {
+export class UnavailableThesisSubmissionRequirementsGateway extends ThesisSubmissionRequirementsGateway {
   async assertSatisfied(
     _thesisId: string,
     _enrollmentId: string,
@@ -38,7 +37,8 @@ export class UnavailableThesisSubmissionRequirementsGateway
     throw new AppException({
       code: ErrorCode.ServiceUnavailable,
       status: HttpStatus.SERVICE_UNAVAILABLE,
-      message: "UC-08/FR-016: trusted program submission requirements are not integrated",
+      message:
+        "UC-08/FR-016: trusted program submission requirements are not integrated",
     });
   }
 }

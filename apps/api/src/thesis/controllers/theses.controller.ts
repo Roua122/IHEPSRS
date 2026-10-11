@@ -12,7 +12,13 @@ export class ThesesController {
 
   @Post()
   createDraft(
-    @Body() body: { enrollmentId: string; titleAr: string; titleEn?: string; abstract?: string },
+    @Body()
+    body: {
+      enrollmentId: string;
+      titleAr: string;
+      titleEn?: string;
+      abstract?: string;
+    },
     @Req() request: AuthorizationAwareRequest,
   ) {
     return this.theses.createDraft(body, request.authorizationPrincipal!);
@@ -23,28 +29,46 @@ export class ThesesController {
     @Param("enrollmentId") enrollmentId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.listByEnrollment(enrollmentId, request.authorizationPrincipal!);
+    return this.theses.listByEnrollment(
+      enrollmentId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":thesisId")
-  getOne(@Param("thesisId") thesisId: string, @Req() request: AuthorizationAwareRequest) {
+  getOne(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
     return this.theses.getOne(thesisId, request.authorizationPrincipal!);
   }
 
   @Post(":thesisId/register")
-  register(@Param("thesisId") thesisId: string, @Req() request: AuthorizationAwareRequest) {
+  register(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
     return this.theses.register(thesisId, request.authorizationPrincipal!);
   }
 
   @Post(":thesisId/versions/proposal")
   addProposalVersion(
     @Param("thesisId") thesisId: string,
-    @Body() body: { titleAr: string; titleEn?: string; abstract?: string; documentLinkId?: string },
+    @Body()
+    body: {
+      titleAr: string;
+      titleEn?: string;
+      abstract?: string;
+      documentLinkId?: string;
+    },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.addProposalVersion(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.addProposalVersion(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
-
 
   /** TH003 / UC-07: no direct status mutation endpoints. */
   @Post(":thesisId/proposal/submit")
@@ -53,16 +77,25 @@ export class ThesesController {
     @Body() body: { proposalVersionId: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.submitProposal(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.submitProposal(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":thesisId/proposal/supervisor-review")
   reviewProposalAsSupervisor(
     @Param("thesisId") thesisId: string,
-    @Body() body: { proposalVersionId: string; approve: boolean; reason?: string },
+    @Body()
+    body: { proposalVersionId: string; approve: boolean; reason?: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.reviewProposalAsSupervisor(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.reviewProposalAsSupervisor(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":thesisId/proposal/return")
@@ -71,7 +104,11 @@ export class ThesesController {
     @Body() body: { proposalVersionId: string; reason: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.returnProposal(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.returnProposal(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":thesisId/proposal/approve")
@@ -80,7 +117,11 @@ export class ThesesController {
     @Body() body: { proposalVersionId: string; reason?: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.approveProposal(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.approveProposal(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":thesisId/proposal/start-work")
@@ -88,7 +129,10 @@ export class ThesesController {
     @Param("thesisId") thesisId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.beginThesisWork(thesisId, request.authorizationPrincipal!);
+    return this.theses.beginThesisWork(
+      thesisId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":thesisId/proposal/reviews")
@@ -96,7 +140,10 @@ export class ThesesController {
     @Param("thesisId") thesisId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.proposalReviews(thesisId, request.authorizationPrincipal!);
+    return this.theses.proposalReviews(
+      thesisId,
+      request.authorizationPrincipal!,
+    );
   }
 
   /** TH004 / UC-08: append a final, independently numbered ThesisVersion. */
@@ -106,7 +153,11 @@ export class ThesesController {
     @Body() body: { documentLinkId: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.addSubmissionVersion(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.addSubmissionVersion(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   /** TH004: readiness can only be confirmed by the currently assigned Main supervisor. */
@@ -116,7 +167,11 @@ export class ThesesController {
     @Body() body: { submissionVersionId: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.confirmSubmissionReadiness(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.confirmSubmissionReadiness(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   /** TH004: only an explicit, validated InProgress -> Submitted transition. */
@@ -126,7 +181,11 @@ export class ThesesController {
     @Body() body: { submissionVersionId: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.submitThesis(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.submitThesis(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":thesisId/submission/confirmations")
@@ -134,11 +193,17 @@ export class ThesesController {
     @Param("thesisId") thesisId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.submissionConfirmations(thesisId, request.authorizationPrincipal!);
+    return this.theses.submissionConfirmations(
+      thesisId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":thesisId/versions")
-  versions(@Param("thesisId") thesisId: string, @Req() request: AuthorizationAwareRequest) {
+  versions(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
     return this.theses.versions(thesisId, request.authorizationPrincipal!);
   }
 
@@ -148,21 +213,36 @@ export class ThesesController {
     @Query("at") at: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.statusAsOf(thesisId, at, request.authorizationPrincipal!);
+    return this.theses.statusAsOf(
+      thesisId,
+      at,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":thesisId/progress")
   addProgress(
     @Param("thesisId") thesisId: string,
-    @Body() body: { periodFrom: string; periodTo: string; studentSummary: string },
+    @Body()
+    body: { periodFrom: string; periodTo: string; studentSummary: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.appendStudentProgress(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.appendStudentProgress(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":thesisId/progress")
-  getProgress(@Param("thesisId") thesisId: string, @Req() request: AuthorizationAwareRequest) {
-    return this.theses.progressReports(thesisId, request.authorizationPrincipal!);
+  getProgress(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.progressReports(
+      thesisId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":thesisId/title-amendments")
@@ -171,12 +251,22 @@ export class ThesesController {
     @Body() body: { titleAr: string; titleEn?: string; reason: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.theses.requestTitleAmendment(thesisId, body, request.authorizationPrincipal!);
+    return this.theses.requestTitleAmendment(
+      thesisId,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":thesisId/title-amendments")
-  amendments(@Param("thesisId") thesisId: string, @Req() request: AuthorizationAwareRequest) {
-    return this.theses.titleAmendments(thesisId, request.authorizationPrincipal!);
+  amendments(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.titleAmendments(
+      thesisId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":thesisId/title-amendments/:amendmentId/decision")
@@ -187,7 +277,10 @@ export class ThesesController {
     @Req() request: AuthorizationAwareRequest,
   ) {
     return this.theses.decideTitleAmendment(
-      thesisId, amendmentId, body, request.authorizationPrincipal!,
+      thesisId,
+      amendmentId,
+      body,
+      request.authorizationPrincipal!,
     );
   }
 }

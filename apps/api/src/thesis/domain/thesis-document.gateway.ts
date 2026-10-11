@@ -54,7 +54,8 @@ export class UnavailableThesisDocumentGateway extends ThesisDocumentGateway {
     throw new AppException({
       code: ErrorCode.ServiceUnavailable,
       status: HttpStatus.SERVICE_UNAVAILABLE,
-      message: "FR-029/NFR-022: verified Thesis DocumentLink service not integrated",
+      message:
+        "FR-029/NFR-022: verified Thesis DocumentLink service not integrated",
     });
   }
 
@@ -65,7 +66,8 @@ export class UnavailableThesisDocumentGateway extends ThesisDocumentGateway {
     throw new AppException({
       code: ErrorCode.ServiceUnavailable,
       status: HttpStatus.SERVICE_UNAVAILABLE,
-      message: "FR-015/029: classified, scan-cleared Thesis proposal plan service not integrated",
+      message:
+        "FR-015/029: classified, scan-cleared Thesis proposal plan service not integrated",
     });
   }
 
@@ -76,7 +78,8 @@ export class UnavailableThesisDocumentGateway extends ThesisDocumentGateway {
     throw new AppException({
       code: ErrorCode.ServiceUnavailable,
       status: HttpStatus.SERVICE_UNAVAILABLE,
-      message: "FR-016/029/NFR-022: classified, scan-cleared Thesis submission service not integrated",
+      message:
+        "FR-016/029/NFR-022: classified, scan-cleared Thesis submission service not integrated",
     });
   }
 }

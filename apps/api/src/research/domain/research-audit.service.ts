@@ -57,6 +57,21 @@ export class ResearchAuditService {
     }));
   }
 
+  snapshotLength(): number {
+    return this.entries.length;
+  }
+
+  rollbackTo(length: number): void {
+    if (
+      !Number.isInteger(length) ||
+      length < 0 ||
+      length > this.entries.length
+    ) {
+      throw new Error("Invalid audit rollback position");
+    }
+    this.entries.splice(length);
+  }
+
   verifyChain(): boolean {
     let previousHash: string | null = null;
     for (const entry of this.entries) {

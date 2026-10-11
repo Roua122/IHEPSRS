@@ -41,7 +41,8 @@ export class UnavailableThesisSupervisorGateway extends ThesisSupervisorGateway 
     throw new AppException({
       code: ErrorCode.ServiceUnavailable,
       status: HttpStatus.SERVICE_UNAVAILABLE,
-      message: "UC-07/BR-011: approved Main Supervisor service not integrated (TH002)",
+      message:
+        "UC-07/BR-011: approved Main Supervisor service not integrated (TH002)",
     });
   }
 

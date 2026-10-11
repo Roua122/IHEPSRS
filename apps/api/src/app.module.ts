@@ -6,10 +6,11 @@ import { ConfigurationModule } from "./config/configuration.module";
 import { validateEnvironment } from "./config/environment";
 import { HealthController } from "./health.controller";
 import { IdentityModule } from "./identity/identity.module";
-import { ResearchModule } from "./research/research.module";
+import { InstitutionsModule } from "./institutions/institutions.module";
 import { PostgraduateModule } from "./postgraduate/postgraduate.module";
-import { ThesisModule } from "./thesis/thesis.module";
 import { PublicationsModule } from "./publications/publications.module";
+import { ResearchModule } from "./research/research.module";
+import { ThesisModule } from "./thesis/thesis.module";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PublicationsModule } from "./publications/publications.module";
     }),
     ConfigurationModule,
     IdentityModule,
+    InstitutionsModule,
     ResearchModule,
     PublicationsModule,
     PostgraduateModule,

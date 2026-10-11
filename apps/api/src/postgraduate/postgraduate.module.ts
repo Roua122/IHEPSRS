@@ -11,16 +11,26 @@ import { AcademicAuthorizationService } from "./domain/academic-authorization.se
 import { AcademicReferenceService } from "./domain/academic-reference.service";
 import { ApplicantService } from "./domain/applicant.service";
 import { AdmissionDecisionEvidenceService } from "./domain/admission-decision-evidence.service";
-import { ApplicationDocumentGateway, UnavailableApplicationDocumentGateway } from "./domain/application-document.gateway";
+import {
+  ApplicationDocumentGateway,
+  UnavailableApplicationDocumentGateway,
+} from "./domain/application-document.gateway";
 import { ApplicationNotificationOutboxService } from "./domain/application-notification-outbox.service";
 import { ApplicationWorkflowService } from "./domain/application-workflow.service";
 import { EnrollmentLifecycleService } from "./domain/enrollment-lifecycle.service";
 import { EnrollmentPolicyService } from "./domain/enrollment-policy.service";
-import { DegreeReadinessGateway, UnavailableDegreeReadinessGateway } from "./domain/degree-readiness.gateway";
+import {
+  DegreeReadinessGateway,
+  UnavailableDegreeReadinessGateway,
+} from "./domain/degree-readiness.gateway";
 
 @Module({
   imports: [ConfigurationModule, IdentityModule, ResearchModule],
-  controllers: [ApplicantsController, ApplicationsController, EnrollmentsController],
+  controllers: [
+    ApplicantsController,
+    ApplicationsController,
+    EnrollmentsController,
+  ],
   providers: [
     AcademicAuthorizationService,
     AcademicAuditService,
@@ -31,7 +41,10 @@ import { DegreeReadinessGateway, UnavailableDegreeReadinessGateway } from "./dom
     EnrollmentPolicyService,
     AdmissionDecisionEvidenceService,
     ApplicationNotificationOutboxService,
-    { provide: DegreeReadinessGateway, useClass: UnavailableDegreeReadinessGateway },
+    {
+      provide: DegreeReadinessGateway,
+      useClass: UnavailableDegreeReadinessGateway,
+    },
     {
       provide: ApplicationDocumentGateway,
       useClass: UnavailableApplicationDocumentGateway,

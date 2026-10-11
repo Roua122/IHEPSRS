@@ -67,7 +67,7 @@ export class PublicationService {
     if (!Array.isArray(dto.authors) || dto.authors.length === 0) {
       throw this.validation("BR-024: Publication must contain authors");
     }
-    this.validateAuthorConstraints(dto.authors);
+    this.validateAuthorConstraints(dto.authors, dto.publicationDate);
 
     const doi = normalizeIdentifier(dto.doi);
     const externalPublicationId = normalizeIdentifier(
@@ -247,6 +247,78 @@ export class PublicationService {
     return this.auditStatus(principal, updated, "Archived");
   }
 
+  linkExternalAuthorToResearcher(
+    publicationId: string,
+    authorId: string,
+    researcherId: string,
+    principal: AuthorizationPrincipal,
+  ): PublicationRecord {
+    const snapshot = structuredClone(this.publications);
+    const auditLength = this.audit.snapshotLength();
+    try {
+      const publication = this.requirePublication(publicationId);
+      this.assertCanAccessPublication(principal, publication);
+      const authorIndex = publication.authors.findIndex(
+        (author) => author.id === authorId,
+      );
+      if (authorIndex < 0) {
+        throw new AppException({
+          code: ErrorCode.NotFound,
+          status: HttpStatus.NOT_FOUND,
+          message: `PublicationAuthor ${authorId} not found`,
+        });
+      }
+      const author = publication.authors[authorIndex];
+      if (author.researcherId) {
+        if (author.researcherId === researcherId) {
+          return this.clonePublication(publication);
+        }
+        throw new AppException({
+          code: ErrorCode.Conflict,
+          status: HttpStatus.CONFLICT,
+          message:
+            "BR-048/BR-055: Already-linked PublicationAuthor cannot be silently relinked to another Researcher",
+        });
+      }
+
+      const researcher = this.identity.getResearcher(researcherId);
+      this.authorization.assertResearchOperation(
+        principal,
+        researcher.institutionId,
+      );
+      const authors = publication.authors.map((current, index) =>
+        index === authorIndex
+          ? {
+              ...current,
+              researcherId,
+              linkedAt: new Date().toISOString(),
+            }
+          : { ...current },
+      );
+      const updated: PublicationRecord = { ...publication, authors };
+      this.publications.set(publicationId, updated);
+      this.audit.append({
+        actorUserId: principal.userId,
+        action: "publication.external_author.linked",
+        entityType: "PublicationAuthor",
+        entityId: authorId,
+        metadata: {
+          sourceId: "PUB-005/FR-042/BR-048/BR-055",
+          publicationId,
+          researcherId,
+        },
+      });
+      return this.clonePublication(updated);
+    } catch (error) {
+      this.publications.clear();
+      for (const [key, value] of snapshot.entries()) {
+        this.publications.set(key, value);
+      }
+      this.audit.rollbackTo(auditLength);
+      throw error;
+    }
+  }
+
   getPublication(
     publicationId: string,
     principal: AuthorizationPrincipal,
@@ -298,6 +370,7 @@ export class PublicationService {
 
   private validateAuthorConstraints(
     authors: CreatePublicationDto["authors"],
+    publicationDate?: string,
   ): void {
     const orders = authors.map((author) => author.authorOrder);
     if (orders.some((order) => !Number.isInteger(order) || order < 1)) {
@@ -332,6 +405,19 @@ export class PublicationService {
       }
       if (author.researcherId) {
         this.identity.getResearcher(author.researcherId);
+        if (
+          publicationDate &&
+          author.affiliationOrgUnitId &&
+          !this.identity.hasAffiliationAt(
+            author.researcherId,
+            author.affiliationOrgUnitId,
+            publicationDate,
+          )
+        ) {
+          throw this.validation(
+            "BR-048/FR-021: affiliationOrgUnitId must match the Researcher affiliation effective at publication time",
+          );
+        }
       }
     }
   }

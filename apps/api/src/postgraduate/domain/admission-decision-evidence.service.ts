@@ -73,14 +73,18 @@ export class AdmissionDecisionEvidenceService {
       snapshot.submittedAt !== application.submittedAt ||
       !Number.isFinite(Date.parse(snapshot.submittedAt))
     ) {
-      throw this.conflict("FR-012/BR-008: a current submitted application snapshot is required");
+      throw this.conflict(
+        "FR-012/BR-008: a current submitted application snapshot is required",
+      );
     }
     if (
       snapshot.programId !== application.programId ||
       snapshot.admissionCycleId !== application.admissionCycleId ||
       !this.sameCanonicalPerson(snapshot.personId, application.personId)
     ) {
-      throw this.conflict("BR-008: submitted person/program/cycle differs from application");
+      throw this.conflict(
+        "BR-008: submitted person/program/cycle differs from application",
+      );
     }
     const program = this.references.getProgram(application.programId);
     const cycle = this.references.getCycle(application.admissionCycleId);
@@ -88,7 +92,9 @@ export class AdmissionDecisionEvidenceService {
       program.institutionId !== application.institutionId ||
       cycle.programId !== application.programId
     ) {
-      throw this.conflict("BR-008: source registry program/institution/cycle mismatch");
+      throw this.conflict(
+        "BR-008: source registry program/institution/cycle mismatch",
+      );
     }
     return snapshot;
   }
@@ -122,13 +128,16 @@ export class AdmissionDecisionEvidenceService {
       application.programId !== target.programId ||
       application.admissionCycleId !== target.admissionCycleId
     ) {
-      throw this.conflict("BR-008: enrollment person/program/cycle/institution mismatch");
+      throw this.conflict(
+        "BR-008: enrollment person/program/cycle/institution mismatch",
+      );
     }
     const decision = application.decision;
     if (
       application.status !== "Accepted" ||
       !decision ||
-      (decision.outcome !== "Accepted" && decision.outcome !== "ConditionalAccepted") ||
+      (decision.outcome !== "Accepted" &&
+        decision.outcome !== "ConditionalAccepted") ||
       !decision.decisionId ||
       !decision.decidedByUserId ||
       !decision.reason?.trim() ||
@@ -136,16 +145,21 @@ export class AdmissionDecisionEvidenceService {
       !Number.isFinite(Date.parse(decision.decidedAt)) ||
       Date.parse(decision.decidedAt) < Date.parse(snapshot.submittedAt)
     ) {
-      throw this.conflict("BR-008: an authorized, recorded Accepted decision is required");
+      throw this.conflict(
+        "BR-008: an authorized, recorded Accepted decision is required",
+      );
     }
     if (decision.outcome === "ConditionalAccepted") {
       if (
         !decision.conditions?.trim() ||
         !decision.conditionsClearedAt ||
         !Number.isFinite(Date.parse(decision.conditionsClearedAt)) ||
-        Date.parse(decision.conditionsClearedAt) < Date.parse(decision.decidedAt)
+        Date.parse(decision.conditionsClearedAt) <
+          Date.parse(decision.decidedAt)
       ) {
-        throw this.conflict("BR-008: conditional admission has not been cleared");
+        throw this.conflict(
+          "BR-008: conditional admission has not been cleared",
+        );
       }
     }
 
@@ -193,7 +207,9 @@ export class AdmissionDecisionEvidenceService {
       return false;
     }
     const at = new Date(`${value}T00:00:00.000Z`);
-    return Number.isFinite(at.getTime()) && at.toISOString().slice(0, 10) === value;
+    return (
+      Number.isFinite(at.getTime()) && at.toISOString().slice(0, 10) === value
+    );
   }
 
   private invalid(message: string): AppException {

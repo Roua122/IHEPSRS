@@ -3,7 +3,10 @@ import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
 import { AuthenticatedOnly } from "../../identity/authentication/route-access.decorator";
 import type { AuthorizationAwareRequest } from "../../identity/authorization/authorization.guard";
 import { EnrollmentLifecycleService } from "../domain/enrollment-lifecycle.service";
-import { EnrollmentPolicyService, type ApproveEnrollmentPolicyInput } from "../domain/enrollment-policy.service";
+import {
+  EnrollmentPolicyService,
+  type ApproveEnrollmentPolicyInput,
+} from "../domain/enrollment-policy.service";
 
 /** TASK-PG-005 — operations only; no arbitrary status PUT/PATCH. */
 @AuthenticatedOnly()
@@ -24,7 +27,8 @@ export class EnrollmentsController {
 
   @Post()
   create(
-    @Body() body: { applicationId: string; startDate: string; academicYear: string },
+    @Body()
+    body: { applicationId: string; startDate: string; academicYear: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
     return this.lifecycle.create(body, request.authorizationPrincipal!);
@@ -36,7 +40,11 @@ export class EnrollmentsController {
     @Query("programId") programId: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.lifecycle.listForOfficer(institutionId, programId, request.authorizationPrincipal!);
+    return this.lifecycle.listForOfficer(
+      institutionId,
+      programId,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":enrollmentId")
@@ -53,7 +61,11 @@ export class EnrollmentsController {
     @Query("at") at: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.lifecycle.statusAsOf(enrollmentId, at, request.authorizationPrincipal!);
+    return this.lifecycle.statusAsOf(
+      enrollmentId,
+      at,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":enrollmentId/pending/resolve")
@@ -62,7 +74,11 @@ export class EnrollmentsController {
     @Body() body: { reason: string; approvedProgramReference: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.lifecycle.resolvePending(id, body, request.authorizationPrincipal!);
+    return this.lifecycle.resolvePending(
+      id,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":enrollmentId/suspend")
@@ -104,7 +120,13 @@ export class EnrollmentsController {
   @Post(":enrollmentId/re-enroll")
   reEnroll(
     @Param("enrollmentId") id: string,
-    @Body() body: { applicationId: string; startDate: string; academicYear: string; reason: string },
+    @Body()
+    body: {
+      applicationId: string;
+      startDate: string;
+      academicYear: string;
+      reason: string;
+    },
     @Req() request: AuthorizationAwareRequest,
   ) {
     return this.lifecycle.reEnroll(id, body, request.authorizationPrincipal!);
@@ -125,7 +147,11 @@ export class EnrollmentsController {
     @Body() body: { months: number; reason: string; evidenceReference: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.lifecycle.approveDurationException(id, body, request.authorizationPrincipal!);
+    return this.lifecycle.approveDurationException(
+      id,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Post(":enrollmentId/degree/approve")
@@ -134,7 +160,11 @@ export class EnrollmentsController {
     @Body() body: { reason: string },
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.lifecycle.approveDegree(id, body, request.authorizationPrincipal!);
+    return this.lifecycle.approveDegree(
+      id,
+      body,
+      request.authorizationPrincipal!,
+    );
   }
 
   @Get(":enrollmentId/degree-decision")
@@ -142,6 +172,9 @@ export class EnrollmentsController {
     @Param("enrollmentId") id: string,
     @Req() request: AuthorizationAwareRequest,
   ) {
-    return this.lifecycle.getDegreeDecision(id, request.authorizationPrincipal!);
+    return this.lifecycle.getDegreeDecision(
+      id,
+      request.authorizationPrincipal!,
+    );
   }
 }
