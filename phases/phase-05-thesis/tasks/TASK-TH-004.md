@@ -1,6 +1,6 @@
 # TASK-TH-004 — Thesis submission
 
-Status: TODO
+Status: IN_PROGRESS (implementation WIP; shared gateways pending)
 Implementation: IMPLEMENT
 Prototype Priority: MUST
 Owner: رهف عادل
@@ -51,3 +51,37 @@ Owner: رهف عادل
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+## Implementation progress — TASK-TH-004 (WIP)
+- `POST /theses/:thesisId/submission/versions`: creates an append-only
+  `ThesisVersion(type=Submission)` using the approved title/abstract snapshot
+  and a classified, scan-cleared final Thesis `DocumentLink` (FR-016/029,
+  BR-036/045/057, NFR-022). The Document service owns upload/quarantine.
+- `POST /theses/:thesisId/submission/supervisor-confirm`: the TH002-owned
+  Main Supervisor gateway verifies the authenticated reviewer and returns
+  current assignment evidence; sign-off is tied to one Submission version.
+- `POST /theses/:thesisId/submission/submit`: rejects a wrong status, missing
+  version/document/sign-off, changed Main Supervisor, inactive Enrollment or
+  unsatisfied/mismatched institutional program requirements; appends the
+  Submitted transition and timestamps (UC-08, Baseline 11.1, NFR-014).
+- `ThesisEntityService.assertSubmittedForDefense`: a guard for the TH005-owned
+  committee/defence workflow. It cannot schedule a defence, and TH005 must
+  independently verify the approved, complete, nonduplicated committee
+  (BR-015/016). **Do not register scheduling routes here.**
+- Existing `Proposal`/`Approved`/`Amendment` versions and their histories
+  are not rewritten by TH004.
+
+### Pending shared integration / limitations (not Definition of Done)
+- Replace the fail-closed `ThesisDocumentGateway.resolveAvailableSubmissionLink`
+  with the classified, `Available` DocumentLink adapter. The shared Document
+  service owns MIME/content, checksum, malware scan, quarantine and resumable
+  upload (FR-029/NFR-022). Until then document operations return 503.
+- Replace the fail-closed `ThesisSubmissionRequirementsGateway` with versioned
+  ProgramRequirements evidence from the institution/program authority; no
+  unapproved hard-coded policy defaults or user-provided completion flags.
+- Integrate TH002 Main SupervisorAssignment/identity source of truth. Until
+  then sign-off and submission return 503.
+- Replace the process-local Maps/Audit projection with one durable
+  transactional repository/outbox before asserting NFR-014 acceptance.
+- The task's FR/BR/NFR tests, end-to-end integration and the prototype
+  acceptance checklist remain pending the team's agreed review process.

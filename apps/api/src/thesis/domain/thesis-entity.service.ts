@@ -12,11 +12,14 @@ import type { EnrollmentRecord } from "../../postgraduate/domain/academic.types"
 import { EnrollmentLifecycleService } from "../../postgraduate/domain/enrollment-lifecycle.service";
 import { ThesisDocumentGateway } from "./thesis-document.gateway";
 import { ThesisSupervisorGateway } from "./thesis-supervisor.gateway";
+import { ThesisSubmissionRequirementsGateway } from "./thesis-submission-requirements.gateway";
 import {
   THESIS_TRANSITIONS,
   type ThesisRecord,
   type ThesisProgressRecord,
   type ThesisProposalReview,
+  type ThesisSubmissionSupervisorConfirmation,
+  type ThesisSubmissionRequirementsSnapshot,
   type ThesisStatus,
   type ThesisStatusAsOf,
   type ThesisTitleAmendment,
@@ -29,6 +32,8 @@ interface ThesisAggregate {
   amendments: ThesisTitleAmendment[];
   progress: ThesisProgressRecord[];
   proposalReviews: ThesisProposalReview[];
+  submissionConfirmations: ThesisSubmissionSupervisorConfirmation[];
+  submissionAssessments: ThesisSubmissionRequirementsSnapshot[];
 }
 
 const PRE_APPROVAL = new Set<ThesisStatus>([
@@ -59,6 +64,7 @@ export class ThesisEntityService {
     private readonly audit: AcademicAuditService,
     private readonly documents: ThesisDocumentGateway,
     private readonly supervisors: ThesisSupervisorGateway,
+    private readonly submissionRequirements: ThesisSubmissionRequirementsGateway,
   ) {}
 
   /** UC-07 / BR-010: the parent Enrollment must already be Active. */
@@ -92,6 +98,7 @@ export class ThesisEntityService {
     });
     this.theses.set(record.thesisId, {
       record, versions: [], amendments: [], progress: [], proposalReviews: [],
+      submissionConfirmations: [], submissionAssessments: [],
     });
     return { ...record };
   }
@@ -401,6 +408,250 @@ export class ThesisEntityService {
     });
     this.theses.set(thesisId, { ...latest, record: next });
     return { ...next };
+  }
+
+  /**
+   * TASK-TH-004 / UC-08 / FR-016,029 / BR-036,045.
+   * Capture a new, append-only Submission version of the approved content.
+   * Only a trusted, scan-cleared, purpose-classified Thesis DocumentLink can
+   * represent its final file. The document bytes belong to the Document domain.
+   */
+  async addSubmissionVersion(
+    thesisId: string,
+    input: { documentLinkId: string },
+    principal: AuthorizationPrincipal,
+  ): Promise<ThesisVersion> {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(current.record.enrollmentId, principal);
+    this.assertWriter(principal, enrollment);
+    this.assertActiveEnrollment(enrollment);
+    if (current.record.status !== "InProgress" || !current.record.proposalApprovedAt) {
+      throw this.conflict("UC-08/FR-016: only an InProgress Thesis with an approved proposal can be submitted");
+    }
+    const base = current.versions.find((item) =>
+      item.thesisVersionId === current.record.currentVersionId);
+    if (!base || !["Approved", "Amendment", "Submission"].includes(base.versionType)) {
+      throw this.conflict("BR-045: an approved title/abstract snapshot is required");
+    }
+    const documentLinkId = this.required(input?.documentLinkId, "documentLinkId");
+    const document = await this.documents.resolveAvailableSubmissionLink(thesisId, documentLinkId);
+    this.assertVerifiedSubmissionLink(thesisId, documentLinkId, document);
+    const latest = this.sameCurrent(thesisId, principal, current);
+    const version: ThesisVersion = {
+      thesisVersionId: randomUUID(), thesisId, versionNo: latest.versions.length + 1,
+      versionType: "Submission", title: latest.record.titleAr,
+      titleEn: latest.record.titleEn, abstract: latest.record.abstract,
+      documentId: document.documentId, documentLinkId,
+      createdByUserId: principal.userId, createdAt: new Date().toISOString(),
+    };
+    this.audit.record(principal.userId, "thesis.version.submission.added", "Thesis", thesisId,
+      "FR-016/FR-029/BR-036/BR-045/UC-08");
+    this.theses.set(thesisId, {
+      ...latest,
+      record: { ...latest.record, currentVersionId: version.thesisVersionId },
+      versions: [...latest.versions, version],
+    });
+    return { ...version };
+  }
+
+  /**
+   * TASK-TH-004 / UC-08 / Baseline 11.1.
+   * Supervisor identity and active Main assignment are validated by the
+   * TH002-owned gateway, not by a client-supplied `confirmed: true` flag.
+   */
+  async confirmSubmissionReadiness(
+    thesisId: string,
+    input: { submissionVersionId: string },
+    principal: AuthorizationPrincipal,
+  ): Promise<ThesisSubmissionSupervisorConfirmation> {
+    if (!principal?.authenticated || !principal.userId) {
+      throw new AppException({
+        code: ErrorCode.Forbidden, status: HttpStatus.FORBIDDEN,
+        message: "UC-08: authenticated assigned Main Supervisor confirmation is required",
+      });
+    }
+    // Do not route a Supervisor through student/PGO Enrollment read permissions;
+    // TH002 must validate the supervisor's access AND active Enrollment in its
+    // authoritative assignment adapter before returning any evidence.
+    const current = this.theses.get(this.required(thesisId, "thesisId"));
+    if (!current) throw this.notFound("UC-08: Thesis not found");
+    if (current.record.status !== "InProgress") {
+      throw this.conflict("UC-08: Supervisor confirmation requires InProgress Thesis");
+    }
+    const submissionVersionId = this.required(input?.submissionVersionId, "submissionVersionId");
+    const version = this.submissionVersion(current, submissionVersionId, false);
+    if (current.submissionConfirmations.some((item) =>
+      item.submissionVersionId === submissionVersionId)) {
+      throw this.conflict("UC-08: this Submission version has already been confirmed");
+    }
+    const assignment = await this.supervisors.assertAssignedMainSupervisor(
+      thesisId, current.record.enrollmentId, principal,
+    );
+    if (assignment.thesisId !== thesisId ||
+        assignment.enrollmentId !== current.record.enrollmentId ||
+        !assignment.assignmentId?.trim()) {
+      throw this.conflict("BR-011/UC-08: current Main Supervisor proof is required");
+    }
+    await this.assertSubmissionDocument(thesisId, version);
+    if (this.theses.get(thesisId) !== current) {
+      throw this.conflict("NFR-014: Thesis changed during supervisor verification; retry");
+    }
+    const confirmation: ThesisSubmissionSupervisorConfirmation = {
+      confirmationId: randomUUID(), thesisId, submissionVersionId,
+      mainSupervisorAssignmentId: assignment.assignmentId,
+      confirmedByUserId: principal.userId, confirmedAt: new Date().toISOString(),
+    };
+    this.audit.record(principal.userId, "thesis.submission.supervisor.confirmed", "Thesis", thesisId,
+      "FR-016/UC-08/BR-011");
+    this.theses.set(thesisId, {
+      ...current,
+      submissionConfirmations: [...current.submissionConfirmations, confirmation],
+    });
+    return { ...confirmation };
+  }
+
+  /**
+   * TASK-TH-004 / UC-08: InProgress -> Submitted requires all three:
+   * Submission ThesisVersion, Main Supervisor confirmation for THAT version,
+   * and trusted programme requirements evidence (Baseline 11.1).
+   * No defence/committee status is written here: TH005 owns that operation.
+   */
+  async submitThesis(
+    thesisId: string,
+    input: { submissionVersionId: string },
+    principal: AuthorizationPrincipal,
+  ): Promise<{ thesis: ThesisRecord; submissionVersion: ThesisVersion }> {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(current.record.enrollmentId, principal);
+    this.assertWriter(principal, enrollment);
+    this.assertActiveEnrollment(enrollment);
+    if (current.record.status !== "InProgress" || !current.record.proposalApprovedAt) {
+      throw this.conflict("UC-08: Thesis must be InProgress after proposal approval");
+    }
+    const submissionVersionId = this.required(input?.submissionVersionId, "submissionVersionId");
+    const version = this.submissionVersion(current, submissionVersionId, false);
+    const confirmation = current.submissionConfirmations.find((item) =>
+      item.submissionVersionId === submissionVersionId);
+    if (!confirmation) {
+      throw this.conflict("UC-08: current Submission version requires Main Supervisor confirmation");
+    }
+    const main = await this.assertActiveSupervisor(thesisId, enrollment.enrollmentId);
+    if (confirmation.mainSupervisorAssignmentId !== main.assignmentId) {
+      throw this.conflict("UC-08: Main Supervisor changed; obtain a new submission confirmation");
+    }
+    await this.assertSubmissionDocument(thesisId, version);
+    const requirements = await this.submissionRequirements.assertSatisfied(
+      thesisId, enrollment.enrollmentId, enrollment.programId,
+    );
+    if (requirements?.requirementsSatisfied !== true ||
+        requirements.thesisId !== thesisId ||
+        requirements.enrollmentId !== enrollment.enrollmentId ||
+        requirements.programId !== enrollment.programId ||
+        !requirements.policyVersionId?.trim() ||
+        !requirements.assessmentId?.trim()) {
+      throw this.conflict("UC-08: matching, approved programme-requirements evidence is required");
+    }
+    const latest = this.sameCurrent(thesisId, principal, current);
+    this.assertTransition(latest.record.status, "Submitted");
+    const submittedAt = new Date().toISOString();
+    const submittedVersion: ThesisVersion = { ...version, submittedAt };
+    const assessment: ThesisSubmissionRequirementsSnapshot = {
+      thesisId, submissionVersionId,
+      assessmentId: requirements.assessmentId,
+      policyVersionId: requirements.policyVersionId,
+      assessedAt: submittedAt,
+    };
+    const next: ThesisRecord = { ...latest.record, status: "Submitted", submittedAt };
+    this.audit.transition({
+      entityType: "Thesis", entityId: thesisId,
+      fromStatus: latest.record.status, toStatus: next.status,
+      actorUserId: principal.userId,
+      sourceId: "FR-016/FR-029/BR-015/BR-036/BR-045/UC-08/NFR-014",
+      reasonCode: "SubmissionVerified",
+    });
+    this.theses.set(thesisId, {
+      ...latest, record: next,
+      versions: latest.versions.map((item) =>
+        item.thesisVersionId === submissionVersionId ? submittedVersion : item),
+      submissionAssessments: [...latest.submissionAssessments, assessment],
+    });
+    return { thesis: { ...next }, submissionVersion: { ...submittedVersion } };
+  }
+
+  /** Read-only, scoped confirmation history; previous evidence remains immutable. */
+  submissionConfirmations(
+    thesisId: string, principal: AuthorizationPrincipal,
+  ): ThesisSubmissionSupervisorConfirmation[] {
+    return this.scoped(thesisId, principal).submissionConfirmations.map((item) => ({ ...item }));
+  }
+
+  /**
+   * TH005 / UC-08 / BR-015: future defence scheduling MUST call this guard,
+   * AND independently validate approved committee composition (BR-016).
+   * This is not itself a scheduling API or permission to schedule.
+   */
+  async assertSubmittedForDefense(
+    thesisId: string,
+    principal: AuthorizationPrincipal,
+  ): Promise<{ thesisId: string; submissionVersionId: string; submittedAt: string }> {
+    const current = this.scoped(thesisId, principal);
+    if (current.record.status !== "Submitted" || !current.record.submittedAt) {
+      throw this.conflict("BR-015: defence cannot be scheduled before Thesis is Submitted");
+    }
+    const version = this.submissionVersion(current, current.record.currentVersionId ?? "", true);
+    if (version.submittedAt !== current.record.submittedAt ||
+        !current.submissionConfirmations.some((item) =>
+          item.submissionVersionId === version.thesisVersionId) ||
+        !current.submissionAssessments.some((item) =>
+          item.submissionVersionId === version.thesisVersionId)) {
+      throw this.conflict("BR-015/BR-045: current submitted version is missing required evidence");
+    }
+    await this.assertSubmissionDocument(thesisId, version);
+    this.sameCurrent(thesisId, principal, current);
+    return { thesisId, submissionVersionId: version.thesisVersionId,
+      submittedAt: current.record.submittedAt };
+  }
+
+  private submissionVersion(
+    current: ThesisAggregate, versionId: string, mustBeSubmitted: boolean,
+  ): ThesisVersion {
+    const version = current.versions.at(-1);
+    if (!version || version.versionType !== "Submission" ||
+        version.thesisVersionId !== versionId ||
+        current.record.currentVersionId !== versionId) {
+      throw this.conflict("BR-036/BR-045: latest immutable Submission version is required");
+    }
+    if (Boolean(version.submittedAt) !== mustBeSubmitted) {
+      throw this.conflict("UC-08: Submission version state does not match this operation");
+    }
+    return version;
+  }
+
+  private async assertSubmissionDocument(
+    thesisId: string, version: ThesisVersion,
+  ): Promise<void> {
+    if (!version.documentLinkId || !version.documentId) {
+      throw this.conflict("FR-029: final Thesis Submission requires a verified DocumentLink");
+    }
+    const document = await this.documents.resolveAvailableSubmissionLink(
+      thesisId, version.documentLinkId,
+    );
+    this.assertVerifiedSubmissionLink(thesisId, version.documentLinkId, document);
+    if (document.documentId !== version.documentId) {
+      throw this.conflict("BR-036/BR-057: previously verified DocumentLink changed its target document");
+    }
+  }
+
+  private assertVerifiedSubmissionLink(
+    thesisId: string, linkId: string,
+    document: { available: true; targetType: "Thesis"; targetId: string;
+      documentLinkId: string; documentId: string; purpose: string },
+  ): void {
+    if (document?.available !== true || document.targetType !== "Thesis" ||
+        document.targetId !== thesisId || document.documentLinkId !== linkId ||
+        !document.documentId?.trim() || !document.purpose?.trim()) {
+      throw this.conflict("FR-029/NFR-022/BR-057: final, scan-cleared Thesis document link is required");
+    }
   }
 
   /** Read-only, append-only proof of reviewer/committee actions (UC-07). */

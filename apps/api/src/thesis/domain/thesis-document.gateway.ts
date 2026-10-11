@@ -32,6 +32,16 @@ export abstract class ThesisDocumentGateway {
     thesisId: string,
     documentLinkId: string,
   ): Promise<VerifiedThesisDocumentLink>;
+
+  /**
+   * FR-029/NFR-022/BR-036: validate the Document service's classification of
+   * a scan-cleared FINAL Thesis submission document. This does not upload the
+   * file or infer its type from an untrusted client-provided filename/MIME.
+   */
+  abstract resolveAvailableSubmissionLink(
+    thesisId: string,
+    documentLinkId: string,
+  ): Promise<VerifiedThesisDocumentLink>;
 }
 
 /** Replace this adapter only after the shared document service is integrated. */
@@ -56,6 +66,17 @@ export class UnavailableThesisDocumentGateway extends ThesisDocumentGateway {
       code: ErrorCode.ServiceUnavailable,
       status: HttpStatus.SERVICE_UNAVAILABLE,
       message: "FR-015/029: classified, scan-cleared Thesis proposal plan service not integrated",
+    });
+  }
+
+  async resolveAvailableSubmissionLink(
+    _thesisId: string,
+    _documentLinkId: string,
+  ): Promise<VerifiedThesisDocumentLink> {
+    throw new AppException({
+      code: ErrorCode.ServiceUnavailable,
+      status: HttpStatus.SERVICE_UNAVAILABLE,
+      message: "FR-016/029/NFR-022: classified, scan-cleared Thesis submission service not integrated",
     });
   }
 }

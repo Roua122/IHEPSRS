@@ -128,3 +128,22 @@ export interface ThesisProposalReview {
   /** Approved Main SupervisorAssignment from the TH002-owned source of truth. */
   mainSupervisorAssignmentId?: string;
 }
+
+/** TASK-TH-004 / UC-08: immutable readiness sign-off for ONE Submission version. */
+export interface ThesisSubmissionSupervisorConfirmation {
+  confirmationId: string;
+  thesisId: string;
+  submissionVersionId: string;
+  mainSupervisorAssignmentId: string;
+  confirmedByUserId: string;
+  confirmedAt: string;
+}
+
+/** Snapshot of the versioned program-policy check used at submission. */
+export interface ThesisSubmissionRequirementsSnapshot {
+  thesisId: string;
+  submissionVersionId: string;
+  assessmentId: string;
+  policyVersionId: string;
+  assessedAt: string;
+}

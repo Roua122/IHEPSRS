@@ -9,6 +9,10 @@ import {
 } from "./domain/thesis-document.gateway";
 import { ThesisEntityService } from "./domain/thesis-entity.service";
 import {
+  ThesisSubmissionRequirementsGateway,
+  UnavailableThesisSubmissionRequirementsGateway,
+} from "./domain/thesis-submission-requirements.gateway";
+import {
   ThesisSupervisorGateway,
   UnavailableThesisSupervisorGateway,
 } from "./domain/thesis-supervisor.gateway";
@@ -20,6 +24,10 @@ import {
     ThesisEntityService,
     { provide: ThesisDocumentGateway, useClass: UnavailableThesisDocumentGateway },
     { provide: ThesisSupervisorGateway, useClass: UnavailableThesisSupervisorGateway },
+    {
+      provide: ThesisSubmissionRequirementsGateway,
+      useClass: UnavailableThesisSubmissionRequirementsGateway,
+    },
   ],
   exports: [ThesisEntityService],
 })

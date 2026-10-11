@@ -99,6 +99,44 @@ export class ThesesController {
     return this.theses.proposalReviews(thesisId, request.authorizationPrincipal!);
   }
 
+  /** TH004 / UC-08: append a final, independently numbered ThesisVersion. */
+  @Post(":thesisId/submission/versions")
+  addSubmissionVersion(
+    @Param("thesisId") thesisId: string,
+    @Body() body: { documentLinkId: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.addSubmissionVersion(thesisId, body, request.authorizationPrincipal!);
+  }
+
+  /** TH004: readiness can only be confirmed by the currently assigned Main supervisor. */
+  @Post(":thesisId/submission/supervisor-confirm")
+  confirmSubmissionReadiness(
+    @Param("thesisId") thesisId: string,
+    @Body() body: { submissionVersionId: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.confirmSubmissionReadiness(thesisId, body, request.authorizationPrincipal!);
+  }
+
+  /** TH004: only an explicit, validated InProgress -> Submitted transition. */
+  @Post(":thesisId/submission/submit")
+  submitThesis(
+    @Param("thesisId") thesisId: string,
+    @Body() body: { submissionVersionId: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.submitThesis(thesisId, body, request.authorizationPrincipal!);
+  }
+
+  @Get(":thesisId/submission/confirmations")
+  submissionConfirmations(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.submissionConfirmations(thesisId, request.authorizationPrincipal!);
+  }
+
   @Get(":thesisId/versions")
   versions(@Param("thesisId") thesisId: string, @Req() request: AuthorizationAwareRequest) {
     return this.theses.versions(thesisId, request.authorizationPrincipal!);
