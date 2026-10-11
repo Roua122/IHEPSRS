@@ -22,6 +22,16 @@ export abstract class ThesisDocumentGateway {
     thesisId: string,
     documentLinkId: string,
   ): Promise<VerifiedThesisDocumentLink>;
+
+  /**
+   * FR-015/029: also verify that the classified purpose corresponds to an
+   * acceptable Thesis proposal plan under the institution's document policy.
+   * Purpose names belong to the Document service; TH003 does not invent them.
+   */
+  abstract resolveAvailableProposalPlanLink(
+    thesisId: string,
+    documentLinkId: string,
+  ): Promise<VerifiedThesisDocumentLink>;
 }
 
 /** Replace this adapter only after the shared document service is integrated. */
@@ -35,6 +45,17 @@ export class UnavailableThesisDocumentGateway extends ThesisDocumentGateway {
       code: ErrorCode.ServiceUnavailable,
       status: HttpStatus.SERVICE_UNAVAILABLE,
       message: "FR-029/NFR-022: verified Thesis DocumentLink service not integrated",
+    });
+  }
+
+  async resolveAvailableProposalPlanLink(
+    _thesisId: string,
+    _documentLinkId: string,
+  ): Promise<VerifiedThesisDocumentLink> {
+    throw new AppException({
+      code: ErrorCode.ServiceUnavailable,
+      status: HttpStatus.SERVICE_UNAVAILABLE,
+      message: "FR-015/029: classified, scan-cleared Thesis proposal plan service not integrated",
     });
   }
 }

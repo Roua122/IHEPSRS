@@ -45,6 +45,60 @@ export class ThesesController {
     return this.theses.addProposalVersion(thesisId, body, request.authorizationPrincipal!);
   }
 
+
+  /** TH003 / UC-07: no direct status mutation endpoints. */
+  @Post(":thesisId/proposal/submit")
+  submitProposal(
+    @Param("thesisId") thesisId: string,
+    @Body() body: { proposalVersionId: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.submitProposal(thesisId, body, request.authorizationPrincipal!);
+  }
+
+  @Post(":thesisId/proposal/supervisor-review")
+  reviewProposalAsSupervisor(
+    @Param("thesisId") thesisId: string,
+    @Body() body: { proposalVersionId: string; approve: boolean; reason?: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.reviewProposalAsSupervisor(thesisId, body, request.authorizationPrincipal!);
+  }
+
+  @Post(":thesisId/proposal/return")
+  returnProposal(
+    @Param("thesisId") thesisId: string,
+    @Body() body: { proposalVersionId: string; reason: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.returnProposal(thesisId, body, request.authorizationPrincipal!);
+  }
+
+  @Post(":thesisId/proposal/approve")
+  approveProposal(
+    @Param("thesisId") thesisId: string,
+    @Body() body: { proposalVersionId: string; reason?: string },
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.approveProposal(thesisId, body, request.authorizationPrincipal!);
+  }
+
+  @Post(":thesisId/proposal/start-work")
+  beginThesisWork(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.beginThesisWork(thesisId, request.authorizationPrincipal!);
+  }
+
+  @Get(":thesisId/proposal/reviews")
+  proposalReviews(
+    @Param("thesisId") thesisId: string,
+    @Req() request: AuthorizationAwareRequest,
+  ) {
+    return this.theses.proposalReviews(thesisId, request.authorizationPrincipal!);
+  }
+
   @Get(":thesisId/versions")
   versions(@Param("thesisId") thesisId: string, @Req() request: AuthorizationAwareRequest) {
     return this.theses.versions(thesisId, request.authorizationPrincipal!);

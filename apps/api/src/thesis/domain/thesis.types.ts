@@ -114,3 +114,17 @@ export interface ThesisProgressRecord {
   createdByUserId: string;
   createdAt: string;
 }
+
+/** TH003 / UC-07: review evidence is append-only, scoped to one Proposal version. */
+export interface ThesisProposalReview {
+  reviewId: string;
+  thesisId: string;
+  proposalVersionId: string;
+  stage: "Supervisor" | "Committee";
+  outcome: "Approved" | "Returned";
+  reviewedByUserId: string;
+  reviewedAt: string;
+  reason?: string;
+  /** Approved Main SupervisorAssignment from the TH002-owned source of truth. */
+  mainSupervisorAssignmentId?: string;
+}

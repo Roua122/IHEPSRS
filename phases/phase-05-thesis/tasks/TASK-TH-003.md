@@ -1,6 +1,6 @@
 # TASK-TH-003 — Proposal workflow
 
-Status: TODO
+Status: IN_PROGRESS
 Implementation: IMPLEMENT
 Prototype Priority: MUST
 Owner: رهف عادل
@@ -51,3 +51,10 @@ Owner: رهف عادل
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+## Implementation checkpoint (TH003)
+- Proposal submission/assigned-supervisor review/committee return/approval/InProgress use explicit domain operations, verified ThesisVersion, audit and institution/program authorization.
+- No implicit supervisor assignment or trusted reviewer data from the client. TH002 must provide `ThesisSupervisorGateway` and verified Main assignment and reviewer identity; TH003 implements version-bound supervisor sign-off. Its default adapter fails closed with 503.
+- FR-029/NFR-022 requires the shared `ThesisDocumentGateway` to validate an Available, correctly bound Thesis plan document. Default adapter fails closed with 503; no fake uploads or unscanned files.
+- TH001/TH003 currently use a prototype in-memory aggregate/audit; NFR-014 requires replacing it with a durable shared transaction before final sign-off. No business rule was silently relaxed.
+- Unit/integration/security checks and prototype acceptance are owned by the team verification process and have not been claimed as passed by this checkpoint.

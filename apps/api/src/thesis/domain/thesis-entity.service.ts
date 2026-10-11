@@ -11,10 +11,12 @@ import { AcademicReferenceService } from "../../postgraduate/domain/academic-ref
 import type { EnrollmentRecord } from "../../postgraduate/domain/academic.types";
 import { EnrollmentLifecycleService } from "../../postgraduate/domain/enrollment-lifecycle.service";
 import { ThesisDocumentGateway } from "./thesis-document.gateway";
+import { ThesisSupervisorGateway } from "./thesis-supervisor.gateway";
 import {
   THESIS_TRANSITIONS,
   type ThesisRecord,
   type ThesisProgressRecord,
+  type ThesisProposalReview,
   type ThesisStatus,
   type ThesisStatusAsOf,
   type ThesisTitleAmendment,
@@ -26,6 +28,7 @@ interface ThesisAggregate {
   versions: ThesisVersion[];
   amendments: ThesisTitleAmendment[];
   progress: ThesisProgressRecord[];
+  proposalReviews: ThesisProposalReview[];
 }
 
 const PRE_APPROVAL = new Set<ThesisStatus>([
@@ -55,6 +58,7 @@ export class ThesisEntityService {
     private readonly authorization: AcademicAuthorizationService,
     private readonly audit: AcademicAuditService,
     private readonly documents: ThesisDocumentGateway,
+    private readonly supervisors: ThesisSupervisorGateway,
   ) {}
 
   /** UC-07 / BR-010: the parent Enrollment must already be Active. */
@@ -86,7 +90,9 @@ export class ThesisEntityService {
       entityType: "Thesis", entityId: record.thesisId, toStatus: "Draft",
       actorUserId: principal.userId, sourceId: "FR-016/FR-045", reasonCode: "DraftCreated",
     });
-    this.theses.set(record.thesisId, { record, versions: [], amendments: [], progress: [] });
+    this.theses.set(record.thesisId, {
+      record, versions: [], amendments: [], progress: [], proposalReviews: [],
+    });
     return { ...record };
   }
 
@@ -158,6 +164,300 @@ export class ThesisEntityService {
       ...current, record: next, versions: [...current.versions, version],
     });
     return { ...version };
+  }
+
+
+  /**
+   * TASK-TH-003 / UC-07 / FR-015,029 / BR-011,036,045.
+   * Submit the latest *new* Proposal version and its verified plan DocumentLink.
+   * A returned proposal must add a new version before re-submission.
+   */
+  async submitProposal(
+    thesisId: string,
+    input: { proposalVersionId: string },
+    principal: AuthorizationPrincipal,
+  ): Promise<ThesisRecord> {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(current.record.enrollmentId, principal);
+    this.assertWriter(principal, enrollment);
+    this.assertActiveEnrollment(enrollment);
+    if (current.record.status !== "SupervisorAssigned" &&
+        current.record.status !== "ProposalReturned") {
+      throw this.conflict("UC-07: proposal submission requires an assigned supervisor or returned proposal");
+    }
+    const proposalId = this.required(input?.proposalVersionId, "proposalVersionId");
+    const proposal = this.proposalVersion(current, proposalId, false);
+    if (!proposal.abstract?.trim()) {
+      throw this.invalid("FR-015: proposal abstract is required at submission");
+    }
+    await this.assertProposalDocument(thesisId, proposal);
+    await this.assertActiveSupervisor(thesisId, enrollment.enrollmentId);
+    // Re-check after the async gateways; do not overwrite a concurrent update.
+    const latest = this.sameCurrent(thesisId, principal, current);
+    const submittedAt = new Date().toISOString();
+    const next: ThesisRecord = { ...latest.record, status: "ProposalSubmitted" };
+    this.assertTransition(latest.record.status, next.status);
+    const versions = latest.versions.map((item) => item.thesisVersionId === proposalId
+      ? { ...item, submittedAt }
+      : item);
+    this.audit.transition({
+      entityType: "Thesis", entityId: thesisId, fromStatus: latest.record.status,
+      toStatus: next.status, actorUserId: principal.userId,
+      sourceId: "FR-015/FR-029/BR-036/BR-045/UC-07", reasonCode: "ProposalSubmitted",
+    });
+    this.theses.set(thesisId, { ...latest, record: next, versions });
+    return { ...next };
+  }
+
+  /**
+   * UC-07 / FR-015: the *assigned supervisor* reviews the submitted version;
+   * TH003 owns the review while TH002 is the source of assignment/identity.
+   * The committee then approves or returns the proposal.
+   */
+  async reviewProposalAsSupervisor(
+    thesisId: string,
+    input: { proposalVersionId: string; approve: boolean; reason?: string },
+    principal: AuthorizationPrincipal,
+  ): Promise<ThesisRecord> {
+    if (!principal?.authenticated || !principal.userId) {
+      throw new AppException({
+        code: ErrorCode.Forbidden,
+        status: HttpStatus.FORBIDDEN,
+        message: "UC-07: assigned supervisor authentication is required",
+      });
+    }
+    // Read only enough to locate the assignment before authenticating the
+    // supervisor. No thesis data is returned before the trusted scope check.
+    const current = this.theses.get(this.required(thesisId, "thesisId"));
+    if (!current) throw this.notFound("FR-015: Thesis not found");
+    const supervisor = await this.supervisors.assertAssignedMainSupervisor(
+      thesisId, current.record.enrollmentId, principal,
+    );
+    if (supervisor.thesisId !== thesisId ||
+        supervisor.enrollmentId !== current.record.enrollmentId ||
+        !supervisor.assignmentId?.trim()) {
+      throw this.conflict("UC-07/BR-011: current, assigned Main Supervisor proof is required");
+    }
+    if (current.record.status !== "ProposalSubmitted") {
+      throw this.conflict("UC-07: only a submitted Proposal may enter review");
+    }
+    const proposalId = this.required(input?.proposalVersionId, "proposalVersionId");
+    this.proposalVersion(current, proposalId, true);
+    if (typeof input?.approve !== "boolean") {
+      throw this.invalid("UC-07: approve must be boolean");
+    }
+    const reason = this.optionalText(input?.reason, "reason");
+    if (!input.approve && !reason) {
+      throw this.invalid("UC-07: reason is required when supervisor requests revision");
+    }
+    // After awaiting TH002 re-check the aggregate without broadening access.
+    if (this.theses.get(thesisId) !== current) {
+      throw this.conflict("NFR-014: Thesis changed during supervisor verification; retry");
+    }
+    const review: ThesisProposalReview = {
+      reviewId: randomUUID(), thesisId, proposalVersionId: proposalId,
+      stage: "Supervisor", outcome: input.approve ? "Approved" : "Returned",
+      reviewedByUserId: principal.userId, reviewedAt: new Date().toISOString(),
+      reason, mainSupervisorAssignmentId: supervisor.assignmentId,
+    };
+    this.assertTransition(current.record.status, "ProposalUnderReview");
+    this.audit.transition({
+      entityType: "Thesis", entityId: thesisId,
+      fromStatus: current.record.status, toStatus: "ProposalUnderReview",
+      actorUserId: principal.userId, sourceId: "UC-07/FR-015/BR-011/BR-013",
+      reasonCode: input.approve ? "SupervisorRecommendedApproval" : "SupervisorRequestedRevision",
+    });
+    const next: ThesisRecord = { ...current.record, status: "ProposalUnderReview" };
+    this.theses.set(thesisId, {
+      ...current, record: next, proposalReviews: [...current.proposalReviews, review],
+    });
+    return { ...next };
+  }
+
+  /** UC-07 / BR-013: committee return with an auditable reason. */
+  returnProposal(
+    thesisId: string,
+    input: { proposalVersionId: string; reason: string },
+    principal: AuthorizationPrincipal,
+  ): ThesisRecord {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(current.record.enrollmentId, principal);
+    this.authorization.assertAuthority(principal, enrollment.institutionId, enrollment.programId);
+    this.assertActiveEnrollment(enrollment);
+    if (current.record.status !== "ProposalUnderReview") {
+      throw this.conflict("UC-07: only a proposal under review can be returned");
+    }
+    const proposalId = this.required(input?.proposalVersionId, "proposalVersionId");
+    this.proposalVersion(current, proposalId, true);
+    const reason = this.required(input?.reason, "reason");
+    if (!current.proposalReviews.some((item) =>
+      item.proposalVersionId === proposalId && item.stage === "Supervisor" &&
+      item.outcome === "Approved")) {
+      throw this.conflict("UC-07: missing supervisor-review evidence");
+    }
+    const reviewedAt = new Date().toISOString();
+    const review: ThesisProposalReview = {
+      reviewId: randomUUID(), thesisId, proposalVersionId: proposalId, stage: "Committee",
+      outcome: "Returned", reviewedByUserId: principal.userId, reviewedAt, reason,
+    };
+    this.assertTransition(current.record.status, "ProposalReturned");
+    this.audit.transition({
+      entityType: "Thesis", entityId: thesisId, fromStatus: current.record.status,
+      toStatus: "ProposalReturned", actorUserId: principal.userId,
+      sourceId: "FR-015/BR-013/UC-07", reasonCode: "ProposalReturnedForChanges",
+    });
+    const next = { ...current.record, status: "ProposalReturned" as const };
+    this.theses.set(thesisId, {
+      ...current, record: next, proposalReviews: [...current.proposalReviews, review],
+    });
+    return { ...next };
+  }
+
+  /**
+   * UC-07 / BR-013,045: institutional authority approves *this* submitted
+   * version, creating a separate Approved ThesisVersion (never rewriting it).
+   */
+  async approveProposal(
+    thesisId: string,
+    input: { proposalVersionId: string; reason?: string },
+    principal: AuthorizationPrincipal,
+  ): Promise<{ thesis: ThesisRecord; approvedVersion: ThesisVersion }> {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(current.record.enrollmentId, principal);
+    this.authorization.assertAuthority(principal, enrollment.institutionId, enrollment.programId);
+    this.assertActiveEnrollment(enrollment);
+    if (current.record.status !== "ProposalUnderReview") {
+      throw this.conflict("UC-07: only an institutional proposal under review may be approved");
+    }
+    const proposalId = this.required(input?.proposalVersionId, "proposalVersionId");
+    const proposal = this.proposalVersion(current, proposalId, true);
+    const supervisorReview = current.proposalReviews.find((item) =>
+      item.proposalVersionId === proposalId && item.stage === "Supervisor" &&
+      item.outcome === "Approved");
+    if (!supervisorReview?.mainSupervisorAssignmentId) {
+      throw this.conflict("UC-07: supervisor approval evidence must precede committee approval");
+    }
+    const main = await this.assertActiveSupervisor(thesisId, enrollment.enrollmentId);
+    if (main.assignmentId !== supervisorReview.mainSupervisorAssignmentId) {
+      throw this.conflict("UC-07: main supervisor changed; obtain new sign-off");
+    }
+    await this.assertProposalDocument(thesisId, proposal);
+    const latest = this.sameCurrent(thesisId, principal, current);
+    const now = new Date().toISOString();
+    const approvedVersion: ThesisVersion = {
+      ...proposal,
+      thesisVersionId: randomUUID(), versionNo: latest.versions.length + 1,
+      versionType: "Approved", createdByUserId: principal.userId,
+      createdAt: now, approvedAt: now,
+    };
+    const next: ThesisRecord = {
+      ...latest.record, status: "ProposalApproved",
+      proposalApprovedAt: now, currentVersionId: approvedVersion.thesisVersionId,
+      titleAr: approvedVersion.title, titleEn: approvedVersion.titleEn,
+      abstract: approvedVersion.abstract,
+    };
+    const reason = this.optionalText(input?.reason, "reason");
+    const review: ThesisProposalReview = {
+      reviewId: randomUUID(), thesisId, proposalVersionId: proposalId,
+      stage: "Committee", outcome: "Approved", reviewedByUserId: principal.userId,
+      reviewedAt: now, reason,
+    };
+    this.assertTransition(latest.record.status, next.status);
+    this.audit.transition({
+      entityType: "Thesis", entityId: thesisId,
+      fromStatus: latest.record.status, toStatus: next.status,
+      actorUserId: principal.userId, sourceId: "FR-015/BR-013/BR-045/UC-07",
+      reasonCode: "ProposalApproved",
+    });
+    this.theses.set(thesisId, {
+      ...latest, record: next, versions: [...latest.versions, approvedVersion],
+      proposalReviews: [...latest.proposalReviews, review],
+    });
+    return { thesis: { ...next }, approvedVersion: { ...approvedVersion } };
+  }
+
+  /** UC-07 / BR-011: InProgress is impossible without formal approval. */
+  async beginThesisWork(thesisId: string, principal: AuthorizationPrincipal): Promise<ThesisRecord> {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(current.record.enrollmentId, principal);
+    this.authorization.assertOfficer(principal, enrollment.institutionId, enrollment.programId);
+    this.assertActiveEnrollment(enrollment);
+    if (current.record.status !== "ProposalApproved" || !current.record.proposalApprovedAt) {
+      throw this.conflict("UC-07: proposal approval is required before InProgress");
+    }
+    const approved = current.versions.find((item) => item.thesisVersionId === current.record.currentVersionId);
+    if (!approved || (approved.versionType !== "Approved" && approved.versionType !== "Amendment") ||
+        !approved.approvedAt) {
+      throw this.conflict("BR-045: approved immutable ThesisVersion is required");
+    }
+    await this.assertActiveSupervisor(thesisId, enrollment.enrollmentId);
+    const latest = this.sameCurrent(thesisId, principal, current);
+    this.assertTransition(latest.record.status, "InProgress");
+    const next: ThesisRecord = { ...latest.record, status: "InProgress" };
+    this.audit.transition({
+      entityType: "Thesis", entityId: thesisId, fromStatus: latest.record.status,
+      toStatus: next.status, actorUserId: principal.userId,
+      sourceId: "FR-015/FR-016/BR-011/UC-07", reasonCode: "ApprovedProposalActivated",
+    });
+    this.theses.set(thesisId, { ...latest, record: next });
+    return { ...next };
+  }
+
+  /** Read-only, append-only proof of reviewer/committee actions (UC-07). */
+  proposalReviews(thesisId: string, principal: AuthorizationPrincipal): ThesisProposalReview[] {
+    return this.scoped(thesisId, principal).proposalReviews.map((item) => ({ ...item }));
+  }
+
+  /** Check that a plan document is still Available, bound to this Thesis, and immutable. */
+  private async assertProposalDocument(thesisId: string, version: ThesisVersion): Promise<void> {
+    if (!version.documentId || !version.documentLinkId) {
+      throw this.conflict("FR-015/FR-029: a verified proposal plan DocumentLink is required");
+    }
+    const link = await this.documents.resolveAvailableProposalPlanLink(thesisId, version.documentLinkId);
+    if (link.available !== true || link.targetType !== "Thesis" ||
+        link.targetId !== thesisId || link.documentLinkId !== version.documentLinkId ||
+        link.documentId !== version.documentId || !link.purpose?.trim()) {
+      throw this.conflict("FR-029/NFR-022/BR-057: proposal document is not available or no longer matches");
+    }
+  }
+
+  /** TH002 service owns the source-of-truth SupervisorAssignment. */
+  private async assertActiveSupervisor(thesisId: string, enrollmentId: string) {
+    const main = await this.supervisors.assertActiveMainSupervisor(thesisId, enrollmentId);
+    if (main.thesisId !== thesisId || main.enrollmentId !== enrollmentId ||
+        !main.assignmentId?.trim()) {
+      throw this.conflict("BR-011: verified active Main Supervisor assignment is required");
+    }
+    return main;
+  }
+
+  private proposalVersion(
+    current: ThesisAggregate,
+    versionId: string,
+    mustBeSubmitted: boolean,
+  ): ThesisVersion {
+    const version = current.versions.at(-1);
+    if (!version || version.thesisVersionId !== versionId ||
+        version.thesisVersionId !== current.record.currentVersionId ||
+        version.versionType !== "Proposal") {
+      throw this.conflict("BR-036/045: latest Proposal version must match the expected version");
+    }
+    if (mustBeSubmitted !== Boolean(version.submittedAt)) {
+      throw this.conflict("UC-07: Proposal version submission state does not match operation");
+    }
+    return version;
+  }
+
+  private sameCurrent(
+    thesisId: string,
+    principal: AuthorizationPrincipal,
+    expected: ThesisAggregate,
+  ): ThesisAggregate {
+    const actual = this.scoped(thesisId, principal);
+    if (actual !== expected) {
+      throw this.conflict("NFR-014: Thesis changed during external verification; retry operation");
+    }
+    return actual;
   }
 
   /** BR-014/045: no direct edits to an already approved thesis title. */

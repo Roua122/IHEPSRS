@@ -8,6 +8,10 @@ import {
   UnavailableThesisDocumentGateway,
 } from "./domain/thesis-document.gateway";
 import { ThesisEntityService } from "./domain/thesis-entity.service";
+import {
+  ThesisSupervisorGateway,
+  UnavailableThesisSupervisorGateway,
+} from "./domain/thesis-supervisor.gateway";
 
 @Module({
   imports: [PostgraduateModule, ResearchModule],
@@ -15,6 +19,7 @@ import { ThesisEntityService } from "./domain/thesis-entity.service";
   providers: [
     ThesisEntityService,
     { provide: ThesisDocumentGateway, useClass: UnavailableThesisDocumentGateway },
+    { provide: ThesisSupervisorGateway, useClass: UnavailableThesisSupervisorGateway },
   ],
   exports: [ThesisEntityService],
 })
