@@ -24,6 +24,7 @@
     "pg-institutions:check": "pnpm build && node scripts/check-pg-institutions-integration.cjs",
     "pg001:check": "pnpm build && node scripts/check-pg001.cjs",
     "pg-workflows:check": "pnpm build && node scripts/check-pg-workflows.cjs",
+    "rahaf-thesis:check": "pnpm build && node scripts/check-rahaf-th003-th004.cjs",
     "thesis-defense:check": "pnpm build && node scripts/check-thesis-defense.cjs && node scripts/check-defense-eligibility.cjs",
     "hardening-security:check": "pnpm build && node scripts/check-hardening-security.cjs"
   },
