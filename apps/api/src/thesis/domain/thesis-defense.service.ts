@@ -8,7 +8,10 @@ import { AcademicAuditService } from "../../postgraduate/domain/academic-audit.s
 import { AcademicAuthorizationService } from "../../postgraduate/domain/academic-authorization.service";
 import { EnrollmentLifecycleService } from "../../postgraduate/domain/enrollment-lifecycle.service";
 import { ThesisEntityService } from "./thesis-entity.service";
-import { DefenseEligibilityGateway } from "./defense-eligibility.gateway";
+import {
+  DefenseEligibilityGateway,
+  type DefenseMemberAttestation,
+} from "./defense-eligibility.gateway";
 import type {
   CorrectionAttempt,
   DefenseCommittee,
@@ -41,6 +44,39 @@ export class ThesisDefenseService {
     private readonly eligibility: DefenseEligibilityGateway,
   ) {}
 
+  /** FR-018: a scoped PGA signs eligibility evidence, never the applicant. */
+  async attestMember(
+    thesisId: string,
+    input: {
+      member: DefenseCommitteeMember;
+      conflictDeclared: boolean;
+      reason: string;
+    },
+    principal: AuthorizationPrincipal,
+  ): Promise<DefenseMemberAttestation> {
+    const { thesis, enrollment } = this.context(thesisId, principal, true);
+    if (
+      thesis.status !== "Submitted" &&
+      thesis.status !== "ReDefenseRequired"
+    ) {
+      throw this.conflict(
+        "BR-015: committee attestation requires a submitted Thesis",
+      );
+    }
+    const member = this.validMembers([input?.member])[0];
+    return this.eligibility.recordAttestation({
+      thesisId,
+      enrollmentId: enrollment.enrollmentId,
+      studentPersonId: enrollment.personId,
+      institutionId: enrollment.institutionId,
+      programId: enrollment.programId,
+      member,
+      conflictDeclared: input?.conflictDeclared,
+      reason: this.required(input?.reason, "reason"),
+      principal,
+    });
+  }
+
   /** FR-018/BR-016: proposal alone is not approval to schedule a defense. */
   async proposeCommittee(
     thesisId: string,
@@ -61,6 +97,7 @@ export class ThesisDefenseService {
     await this.eligibility.assertEligible({
       thesisId,
       enrollmentId: enrollment.enrollmentId,
+      studentPersonId: enrollment.personId,
       institutionId: enrollment.institutionId,
       programId: enrollment.programId,
       members,
@@ -111,6 +148,7 @@ export class ThesisDefenseService {
     await this.eligibility.assertEligible({
       thesisId,
       enrollmentId: enrollment.enrollmentId,
+      studentPersonId: enrollment.personId,
       institutionId: enrollment.institutionId,
       programId: enrollment.programId,
       members: committee.members,
@@ -171,6 +209,7 @@ export class ThesisDefenseService {
     await this.eligibility.assertEligible({
       thesisId,
       enrollmentId: enrollment.enrollmentId,
+      studentPersonId: enrollment.personId,
       institutionId: enrollment.institutionId,
       programId: enrollment.programId,
       members: committee.members,
@@ -494,6 +533,13 @@ export class ThesisDefenseService {
     principal: AuthorizationPrincipal,
   ): DefenseCommittee[] {
     this.context(thesisId, principal, false, true);
+    this.audit.record(
+      principal.userId,
+      "ThesisCommittee.read",
+      "Thesis",
+      thesisId,
+      "NFR-011/FR-037",
+    );
     return this.getCommittees(thesisId).map((x) => this.copyCommittee(x));
   }
   listSessions(
@@ -501,6 +547,13 @@ export class ThesisDefenseService {
     principal: AuthorizationPrincipal,
   ): DefenseSession[] {
     this.context(thesisId, principal, false, true);
+    this.audit.record(
+      principal.userId,
+      "DefenseSession.read",
+      "Thesis",
+      thesisId,
+      "NFR-011/FR-037",
+    );
     return this.getSessions(thesisId).map((x) => ({
       ...x,
       extraDefenseException: x.extraDefenseException
@@ -513,6 +566,13 @@ export class ThesisDefenseService {
     principal: AuthorizationPrincipal,
   ): ThesisCorrection[] {
     this.context(thesisId, principal, false, true);
+    this.audit.record(
+      principal.userId,
+      "ThesisCorrection.read",
+      "Thesis",
+      thesisId,
+      "NFR-011/FR-037",
+    );
     return this.getCorrections(thesisId).map((x) => this.copyCorrection(x));
   }
 
