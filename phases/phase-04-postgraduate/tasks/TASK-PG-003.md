@@ -50,3 +50,35 @@ Owner: رهف عادل
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+
+## Implementation handoff (2026-10-11; pending verification)
+- FR-011: a scoped PGO/PGA claims a `Submitted` application via `/review/start`;
+  only that assigned officer may record an Eligibility/Academic review, recommend,
+  or request `NeedMoreInfo`. Assigned review queue is available to the officer.
+- FR-012 / BR-007: a PGA-only `/decision` records Accepted, Rejected, or
+  ConditionalAccepted with a server-generated UTC timestamp, explicit reason,
+  and effective `BusinessPolicyService` version. A rejected request cannot
+  be used by PG004 to create Enrollment.
+- **Conditional outcome decision (proposed ADR):**
+  `ConditionalAccepted` lives in `AdmissionDecision`, not a new application
+  status. The application stays `UnderReview` until a PGA clears documented
+  conditions; only then does it become `Accepted`. See proposed
+  `decisions/architecture/ADR-PG-003-conditional-admission.md`; PG004 must check both
+  application status and decision clearance before enrollment. No automatic
+  enrollment is created in PG003.
+- BR-041: only the assigned, scoped reviewer can request `NeedMoreInfo`,
+  and resubmission preserves the original snapshot/`firstSubmittedAt`.
+  `/review/timing` subtracts recorded/open `NeedMoreInfo` intervals.
+- Audit operations use the existing append-only service with correlation;
+  notifications are queued in the local outbox. Delivery is NOT implemented.
+- **Dependency / open item:** A trusted IAM reviewer directory for assigning
+  another named staff user is not available in this checkout. Self-claim by
+  a scoped officer is implemented; do not trust arbitrary reviewer userId.
+- **Dependency / open item (NFR-014):** PG002/PG003 application records,
+  review history and notification outbox remain in memory. Persistence and
+  transactional outbox must be integrated with the team's chosen storage
+  pattern before final acceptance. PG002's Document Gateway remains fail-closed
+  until its shared adapter is implemented.
+- Roua's final tests/quality gates have NOT been run for this handoff.
+  Do not mark Definition of Done as complete yet.

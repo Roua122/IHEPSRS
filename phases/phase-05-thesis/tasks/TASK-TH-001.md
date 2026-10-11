@@ -57,3 +57,25 @@ Owner: رهف عادل
 - [ ] No secrets committed.
 - [ ] Documentation affected by the change updated.
 - [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+
+## Implementation Handoff — 2026-10-11 (WIP, not accepted)
+- Created an authenticated Thesis module and `ThesisEntityService` for Draft and
+  Registered operations using the trusted Active Enrollment and academic unit
+  (FR-016, BR-010). No arbitrary status update route is exposed.
+- Established the Baseline section 11 Thesis transition allowlist for owner
+  workflows TH002-TH008; guard checks live in the entity service.
+- Added append-only `ThesisVersion` Proposal snapshots and sequential version
+  numbers (FR-015, BR-036, BR-045), plus title `AmendmentRequest`/authorized
+  approval and rejection, preserving previous versions (BR-014).
+- Added append-only student progress summaries, scoped reads and status-as-of
+  snapshots through existing AcademicAudit and parent Enrollment checks
+  (FR-045/UC-22). Supervisor assessments remain TH002-owned.
+- Document validation is an explicit fail-closed gateway pending a real shared
+  Document/DocumentLink service; it does NOT upload or scan files (FR-029,
+  NFR-022/BR-057). Until connected, linked proposal documents return 503.
+- TH002 owns supervisor assignment; TH003 owns proposal submit/review/approval;
+  TH004 owns thesis submission. No fake evidence or direct status edits are
+  implemented for these collaborators.
+- Current Map + audit implementation is prototype-only. Transactional storage,
+  migrations, document services, and full end-to-end acceptance are pending
+  (NFR-014). Team integration/tests are still required. Do not mark DONE yet.
