@@ -1439,6 +1439,119 @@ export class ThesisEntityService {
     };
   }
 
+  /**
+   * TH005–TH008 internal milestone boundary. No generic HTTP status editor.
+   * The owning Defense service checks committee, minutes, outcome and corrections;
+   * this method independently enforces PGA institutional/program scope and the
+   * canonical transition graph before writing append-only status history.
+   */
+  recordDefenseMilestone(
+    thesisId: string,
+    from: ThesisStatus,
+    to: ThesisStatus,
+    principal: AuthorizationPrincipal,
+    reasonCode: string,
+  ): ThesisRecord {
+    const current = this.scoped(thesisId, principal);
+    const enrollment = this.enrollments.getOne(
+      current.record.enrollmentId,
+      principal,
+    );
+    this.authorization.assertAuthority(
+      principal,
+      enrollment.institutionId,
+      enrollment.programId,
+    );
+    if (current.record.status !== from) {
+      throw this.conflict(
+        "NFR-014: Thesis status changed during defense operation",
+      );
+    }
+    const allowed: Readonly<Record<string, readonly string[]>> = {
+      Submitted: ["DefenseScheduled"],
+      DefenseScheduled: ["Defended"],
+      Defended: [
+        "Approved",
+        "CorrectionsRequired",
+        "ReDefenseRequired",
+        "Failed",
+      ],
+      CorrectionsRequired: ["Approved"],
+      ReDefenseRequired: ["DefenseScheduled"],
+      Approved: ["Archived"],
+      Failed: ["Archived"],
+    };
+    if (!allowed[from]?.includes(to)) {
+      throw this.conflict("TH005–TH008: unsupported defense milestone");
+    }
+    this.assertTransition(from, to);
+    const now = new Date().toISOString();
+    const approvedVersion =
+      to === "Approved"
+        ? this.approvedDefenseVersion(current, principal, now)
+        : undefined;
+    const next: ThesisRecord = {
+      ...current.record,
+      status: to,
+      ...(to === "Approved"
+        ? {
+            approvedAt: now,
+            finalApprovedAt: now,
+            currentVersionId: approvedVersion!.thesisVersionId,
+          }
+        : {}),
+      ...(to === "ReDefenseRequired"
+        ? { reDefenseCount: current.record.reDefenseCount + 1 }
+        : {}),
+    };
+    this.audit.transition({
+      entityType: "Thesis",
+      entityId: thesisId,
+      fromStatus: from,
+      toStatus: to,
+      actorUserId: principal.userId,
+      sourceId: "TH005/TH006/TH007/TH008/FR-016/FR-045/NFR-014",
+      reasonCode,
+    });
+    this.theses.set(thesisId, {
+      ...current,
+      record: next,
+      versions: approvedVersion
+        ? [...current.versions, approvedVersion]
+        : current.versions,
+    });
+    return { ...next };
+  }
+
+  private approvedDefenseVersion(
+    current: ThesisAggregate,
+    principal: AuthorizationPrincipal,
+    now: string,
+  ): ThesisVersion {
+    const source = current.versions.find(
+      (v) => v.thesisVersionId === current.record.currentVersionId,
+    );
+    if (!source || source.versionType !== "Submission" || !source.submittedAt) {
+      throw this.conflict(
+        "TH008: approved Thesis must reference a validated submitted version",
+      );
+    }
+    return {
+      thesisVersionId: randomUUID(),
+      thesisId: current.record.thesisId,
+      versionNo: current.versions.length + 1,
+      versionType: "Approved",
+      title: source.title,
+      titleEn: source.titleEn,
+      abstract: source.abstract,
+      documentId: source.documentId,
+      documentLinkId: source.documentLinkId,
+      createdByUserId: principal.userId,
+      createdAt: now,
+      approvedAt: now,
+    };
+  }
+
   /** Reusable by TH002/TH003/TH004, but not an arbitrary public status API. */
   assertTransition(from: ThesisStatus, to: ThesisStatus): void {
     if (!THESIS_TRANSITIONS[from].includes(to)) {

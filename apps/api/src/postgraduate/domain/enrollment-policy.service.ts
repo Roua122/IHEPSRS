@@ -94,10 +94,13 @@ export class EnrollmentPolicyService {
         "FR-043: policy versions must be increasing and effective-dated",
       );
     }
-    // Replacing a current version only truncates its FUTURE effective range.
-    // Already-recorded decisions keep their pinned copy of the old version.
-    if (last && (!last.effectiveTo || last.effectiveTo > from)) {
-      last.effectiveTo = from;
+    // Stage immutable copies before audit. A failed audit must NOT mutate
+    // the previous effective window (NFR-014), even in the local prototype.
+    // Existing enrollment snapshots remain pinned to their historic values.
+    const nextVersions = versions.map((record) => this.clone(record));
+    const previous = nextVersions.at(-1);
+    if (previous && (!previous.effectiveTo || previous.effectiveTo > from)) {
+      previous.effectiveTo = from;
     }
     const version: EnrollmentPolicyConfiguration = {
       policyId: randomUUID(),
@@ -113,8 +116,6 @@ export class EnrollmentPolicyService {
       status: "Approved",
       value: limits,
     };
-    versions.push(version);
-    this.approved.set(key, versions);
     this.audit.record(
       principal.userId,
       "postgraduate.enrollment.policy.approved",
@@ -122,6 +123,8 @@ export class EnrollmentPolicyService {
       version.policyId,
       "FR-043/BR-052/BR-062",
     );
+    nextVersions.push(version);
+    this.approved.set(key, nextVersions);
     return this.clone(version);
   }
 

@@ -21,7 +21,10 @@
     "auth:generate-totp-secret": "node scripts/generate-totp-secret.cjs",
     "institutions:check": "pnpm build && node scripts/check-institutions.cjs",
     "thesis:check": "pnpm build && node scripts/check-thesis.cjs && node scripts/check-thesis-integration.cjs",
-    "pg-institutions:check": "pnpm build && node scripts/check-pg-institutions-integration.cjs"
+    "pg-institutions:check": "pnpm build && node scripts/check-pg-institutions-integration.cjs",
+    "pg-workflows:check": "pnpm build && node scripts/check-pg-workflows.cjs",
+    "thesis-defense:check": "pnpm build && node scripts/check-thesis-defense.cjs",
+    "hardening-security:check": "pnpm build && node scripts/check-hardening-security.cjs"
   },
   "dependencies": {
     "@ihepsrs/contracts": "workspace:*",
