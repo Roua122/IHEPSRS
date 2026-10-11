@@ -259,7 +259,15 @@ export class InstitutionsService {
     this.authorization.assertInstitutionMasterData(principal, institutionId);
     return this.transact(() => {
       this.assertWindow(dto.effectiveFrom, dto.effectiveTo);
-      if (this.orgUnits.has(dto.orgUnitId)) {
+      // Normalize before the uniqueness lookup: otherwise a padded ID can
+      // overwrite an existing canonical OrgUnit when the Map is updated.
+      const orgUnitId = dto.orgUnitId.trim();
+      const parentOrgUnitId = dto.parentOrgUnitId?.trim() || undefined;
+      if (!orgUnitId) throw this.validation("orgUnitId is required");
+      if (dto.parentOrgUnitId !== undefined && !parentOrgUnitId) {
+        throw this.validation("parentOrgUnitId cannot be empty");
+      }
+      if (this.orgUnits.has(orgUnitId)) {
         throw this.conflict("Duplicate orgUnitId");
       }
       const institution = this.requireInstitution(institutionId);
@@ -267,11 +275,11 @@ export class InstitutionsService {
         throw this.validation("BR-002: OrgUnit requires an Active Institution");
       }
 
-      if (dto.parentOrgUnitId) {
-        if (dto.parentOrgUnitId === dto.orgUnitId) {
+      if (parentOrgUnitId) {
+        if (parentOrgUnitId === orgUnitId) {
           throw this.validation("OrgUnit cannot be its own parent");
         }
-        const parent = this.orgUnits.get(dto.parentOrgUnitId);
+        const parent = this.orgUnits.get(parentOrgUnitId);
         if (!parent || parent.institutionId !== institutionId) {
           throw this.validation(
             "BR-002: Parent OrgUnit must belong to the same Institution",
@@ -290,9 +298,9 @@ export class InstitutionsService {
       }
 
       const record: OrgUnit = {
-        orgUnitId: dto.orgUnitId.trim(),
+        orgUnitId,
         institutionId,
-        parentOrgUnitId: dto.parentOrgUnitId?.trim() || undefined,
+        parentOrgUnitId,
         type: dto.type.trim(),
         nameAr: dto.nameAr.trim(),
         status: dto.status,
@@ -347,13 +355,18 @@ export class InstitutionsService {
     this.authorization.assertInstitutionMasterData(principal, institutionId);
     return this.transact(() => {
       this.assertWindow(dto.effectiveFrom, dto.effectiveTo);
+      const programId = dto.programId.trim();
+      const orgUnitId = dto.orgUnitId.trim();
+      if (!programId || !orgUnitId) {
+        throw this.validation("programId and orgUnitId are required");
+      }
       const institution = this.requireInstitution(institutionId);
       if (institution.status !== "Active") {
         throw this.validation(
           "BR-002: AcademicProgram requires an Active Institution",
         );
       }
-      const unit = this.orgUnits.get(dto.orgUnitId);
+      const unit = this.orgUnits.get(orgUnitId);
       if (
         !unit ||
         unit.institutionId !== institutionId ||
@@ -371,7 +384,15 @@ export class InstitutionsService {
         "BR-002/BR-042: AcademicProgram effective window must fit its OrgUnit",
       );
 
-      const existing = this.programs.get(dto.programId) ?? [];
+      // Program IDs are globally canonical. A new version cannot transfer a
+      // program into another institution, even if the caller has permissions
+      // to create programs in the target institution (BR-002/NFR-008).
+      const existing = this.programs.get(programId) ?? [];
+      if (existing.length && existing[0].institutionId !== institutionId) {
+        throw this.conflict(
+          "BR-002: AcademicProgram cannot change owning Institution",
+        );
+      }
       const expectedVersion =
         existing.length === 0
           ? 1
@@ -407,9 +428,9 @@ export class InstitutionsService {
       }
 
       const record: AcademicProgram = {
-        programId: dto.programId.trim(),
+        programId,
         institutionId,
-        orgUnitId: dto.orgUnitId.trim(),
+        orgUnitId,
         degreeLevel: dto.degreeLevel,
         nameAr: dto.nameAr.trim(),
         specializationCode: dto.specializationCode?.trim() || undefined,
@@ -471,6 +492,7 @@ export class InstitutionsService {
     const unit = this.orgUnits.get(program.orgUnitId);
     if (
       !unit ||
+      unit.institutionId !== program.institutionId ||
       unit.status !== "Active" ||
       !this.isEffective(unit.effectiveFrom, unit.effectiveTo, enrollmentDate)
     ) {

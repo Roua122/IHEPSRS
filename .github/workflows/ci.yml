@@ -57,6 +57,9 @@ jobs:
       - name: Institutions domain checks
         run: pnpm --filter @ihepsrs/api institutions:check
 
+      - name: PG / Institutions integration checks
+        run: pnpm --filter @ihepsrs/api pg-institutions:check
+
       - name: Thesis supervisor checks
         run: pnpm --filter @ihepsrs/api thesis:check
 
