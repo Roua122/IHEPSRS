@@ -8,6 +8,7 @@ import { HealthController } from "./health.controller";
 import { IdentityModule } from "./identity/identity.module";
 import { ResearchModule } from "./research/research.module";
 import { PublicationsModule } from "./publications/publications.module";
+import { IntegrationModule } from "./integration/integration.module";
 
 @Module({
   imports: [
@@ -24,7 +25,9 @@ import { PublicationsModule } from "./publications/publications.module";
     IdentityModule,
     ResearchModule,
     PublicationsModule,
+    IntegrationModule,
   ],
   controllers: [HealthController],
 })
 export class AppModule {}
+
