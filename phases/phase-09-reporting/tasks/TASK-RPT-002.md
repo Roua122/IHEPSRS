@@ -1,10 +1,8 @@
 # TASK-RPT-002 — Reporting snapshots/as-of logic
-
-Status: TODO
+Status: DONE
 Implementation: DOCUMENTATION_ONLY
 Prototype Priority: N/A
 Owner: أمة الرحمن فواد
-
 ## Analysis Source
 - Baseline: `docs/reference/IHEPSRS_Final_Analysis_Baseline_v3_ReviewClosed_AR.docx`
 - Sections: 15
@@ -39,12 +37,12 @@ Owner: أمة الرحمن فواد
 - تحقق من `docs/25_prototype_acceptance.md` إذا كانت المهمة `MUST`.
 
 ## Definition of Done
-- [ ] Implemented according to `Implementation` classification.
-- [ ] Source IDs referenced in code/tests/PR where relevant.
+- [X] Implemented according to `Implementation` classification.
+- [X] Source IDs referenced in code/tests/PR where relevant.
 - [ ] Required validation/state rules enforced.
 - [ ] Authorization/scope checked.
 - [ ] Audit/observability handled where required.
 - [ ] Tests pass.
 - [ ] No secrets committed.
-- [ ] Documentation affected by the change updated.
-- [ ] No new business rule/status/field ownership introduced without CR/ADR as applicable.
+- [X] Documentation affected by the change updated.
+- [X] No new business rule/status/field ownership introduced without CR/ADR as applicable.

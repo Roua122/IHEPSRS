@@ -1,6 +1,6 @@
 # TASK-RPT-004 — Export controls
 
-Status: TODO
+Status: DONE
 Implementation: IMPLEMENT
 Prototype Priority: SHOULD
 Owner: أمة الرحمن فواد
